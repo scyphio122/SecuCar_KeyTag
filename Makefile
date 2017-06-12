@@ -14,6 +14,7 @@ LINKER_COMMON_SCRIPT = nrf5x_common.ld
 #------------------------ INCLUDE PATHS --------------------------------
 
 INC_PATHS += -Iinc/
+INC_PATHS += -Ihardware/
 INC_PATHS += $(SDK_INCLUDE_PATHS) 
 
 #----------------------- COMPILING FLAGS ------------------------------
@@ -60,7 +61,7 @@ ASM_SOURCE_FILES += gcc_startup_nrf52.s
 
 C_SOURCE_FILES = src/main.c
 C_SOURCE_FILES += src/system_nrf52.c
-
+C_SOURCE_FILES += hardware/Systick.c
 
 #------------------------ COMPILATION VARIABLES ------------------------
 

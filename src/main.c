@@ -12,6 +12,8 @@
 #include "nrf_gpio.h"
 #include "nrf52.h"
 #include "core_cm4.h"
+#include "Systick.h"
+
 /*
  *
  * Print a greeting message on standard output and exit.
@@ -33,18 +35,23 @@
 	while(1);
 }*/
 
+void NVICInit()
+{
+	NVIC_SetPriorityGrouping(4);
+}
 
 int
 main(void)
 {
 	nrf_gpio_cfg_output(17);
+	NVICInit();
+	SystickInit();
 
 
 	while(1)
 	{
 		nrf_gpio_pin_toggle(17);
-		for(uint32_t i=0; i<3200000; ++i)
-		{}
+		SystickDelayMs(1000);
 	}
   //printf("Hello ARM World!" "\n");
   return 0;
