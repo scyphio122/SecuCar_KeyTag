@@ -405,8 +405,9 @@ Reset_Handler:
 #ifndef __START
 #define __START _start
 #endif
-    bl __START
 
+    bl main
+;bl __START
     .pool
     .size   Reset_Handler,.-Reset_Handler
 

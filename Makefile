@@ -4,7 +4,7 @@ S132_HEX 		= 	/home/konrad/Eclipse_Workspace/LIBS/nRF/SoftDevice/s132_nrf52_3.1.
 include $(nRF52_SDK)/sdk.mk
 
 CC = arm-none-eabi-gcc
-OPTIMIZATION = -O3
+OPTIMIZATION = -O0
 BUILD_FOLDER = Build_Output
 OUTPUT_BINARY_FOLDER = $(BUILD_FOLDER)
 OUTPUT_BINARY_NAME = Car_Tracker
@@ -23,6 +23,8 @@ CFLAGS += 	-mcpu=cortex-m4
 CFLAGS +=   -mabi=aapcs
 CFLAGS +=   -mthumb
 CFLAGS += 	-mfloat-abi=soft
+CFLAGS += 	-mfpu=fpv4-sp-d16
+CFLAGS +=   -DARM_MATH_CM4
 CFLAGS +=	--std=gnu99
 CFLAGS += 	-Werror
 CFLAGS +=	-fmessage-length=0
@@ -31,31 +33,33 @@ CFLAGS +=	-fdata-sections
 CFLAGS += 	-fno-strict-aliasing
 CFLAGS +=	-g
 CFLAGS += 	-fno-builtin --short-enums
-CFLAGS += 	-fomit-frame-pointer
+#CFLAGS += 	-fomit-frame-pointer
 CFLAGS +=	-DNRF52832_XXAA
 CFLAGS += 	-DNRF52832
 
-#CFLAGS +=	-L"$(S132_headers)" 
 
 ASMFLAGS += -x assembler-with-cpp
-
+ASMFLAGS += -DARM_MATH_CM4
+ASMFLAGS += -mfloat-abi=hard
+ASMFLAGS += -mfpu=fpv4-sp-d16
 #------------------------ LINKER FLAGS --------------------------------
 
 LDFLAGS += -mcpu=cortex-m4
 LDFLAGS += -mabi=aapcs
+LDFLAGS += -mfloat-abi=soft
+LDFLAGS += -mfpu=fpv4-sp-d16
 LDFLAGS += -Xlinker -Map=$(OUTPUT_BINARY_FOLDER)/$(OUTPUT_BINARY_NAME).map
 LDFLAGS += -Wl,--gc-sections
 LDFLAGS += --specs=nano.specs -lc 
 LDFLAGS += --specs=nosys.specs
 LDFLAGS += -T"$(nRF52_SDK)/$(LINKER_SCRIPT)"
-LDFLAGS += -T"$(nRF52_SDK)/$(LINKER_COMMON_SCRIPT)"
 LDFLAGS += -L"$(nRF52_SDK)"
 #----------------------- PROJECT SOURCES ------------------------------
 
-ASM_SOURCE_FILES += gcc_startup_nrf52.S
+ASM_SOURCE_FILES += gcc_startup_nrf52.s
 
 C_SOURCE_FILES = src/main.c
-#C_SOURCE_FILES += src/syscalls.c
+C_SOURCE_FILES += src/system_nrf52.c
 
 
 #------------------------ COMPILATION VARIABLES ------------------------
@@ -73,7 +77,7 @@ ASM_SOURCE_FILE_NAMES = $(notdir $(ASM_SOURCE_FILES))
 
 ASM_PATHS = $(dir $(ASM_SOURCE_FILES))
 
-ASM_OBJECTS = $(addprefix $(BUILD_FOLDER)/, $(ASM_SOURCE_FILE_NAMES:.S=.o))
+ASM_OBJECTS = $(addprefix $(BUILD_FOLDER)/, $(ASM_SOURCE_FILE_NAMES:.s=.o))
 
 # List of paths where the sources are to be searched for
 vpath %.c $(C_PATHS)
@@ -89,7 +93,7 @@ $(BUILD_FOLDER)/%.o: %.c
 	$(CC) $(CFLAGS) $(INC_PATHS) -c $< -o $@
 	
 # Assemble files
-$(BUILD_FOLDER)/%.o: %.S
+$(BUILD_FOLDER)/%.o: %.s
 	@echo Compiling ASM file: $(notdir $<)
 	$(CC) $(ASMFLAGS) $(INC_PATHS) -c -o $@ $<
 

@@ -10,6 +10,8 @@
 
 #include <stdio.h>
 #include "nrf_gpio.h"
+#include "nrf52.h"
+#include "core_cm4.h"
 /*
  *
  * Print a greeting message on standard output and exit.
@@ -25,11 +27,25 @@
  *
  */
 
+/*void HardFault_Handler()
+{
+	uint32_t hfsr = SCB->HFSR;
+	while(1);
+}*/
+
+
 int
 main(void)
 {
 	nrf_gpio_cfg_output(17);
-	nrf_gpio_pin_clear(17);
+
+
+	while(1)
+	{
+		nrf_gpio_pin_toggle(17);
+		for(uint32_t i=0; i<3200000; ++i)
+		{}
+	}
   //printf("Hello ARM World!" "\n");
   return 0;
 }
