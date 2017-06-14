@@ -1,5 +1,6 @@
-nRF52_SDK		= 	/home/konrad/Eclipse_Workspace/LIBS/nRF/nRF52_SDK
-S132_HEX 		= 	/home/konrad/Eclipse_Workspace/LIBS/nRF/SoftDevice/s132_nrf52_3.1.0_softdevice.hex
+nRF52_SDK		= 	/home/konrad/Eclipse_Workspace/LIBS/nRF/nRF52_SDK_13_0
+S132_HEX_NAME   =   s132_nrf52_4.0.2_softdevice
+S132_HEX 		= 	$(nRF52_SDK)/components/softdevice/s132/hex/$(S132_HEX_NAME)
 
 include $(nRF52_SDK)/sdk.mk
 
