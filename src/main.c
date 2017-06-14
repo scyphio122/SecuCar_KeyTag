@@ -15,6 +15,8 @@
 #include "core_cm4.h"
 #include "Systick.h"
 #include "nrf_sdm.h"
+#include "settings.h"
+#include "nrf_nvic.h"
 /*
  *
  * Print a greeting message on standard output and exit.
@@ -30,6 +32,8 @@
  *
  */
 
+nrf_nvic_state_t nrf_nvic_state = {0};
+
 void SDFaultHandler(uint32_t id, uint32_t pc, uint32_t info)
 {
 
@@ -37,16 +41,17 @@ void SDFaultHandler(uint32_t id, uint32_t pc, uint32_t info)
 
 void NVICInit()
 {
-	NVIC_SetPriorityGrouping(4);
+	//NVIC_SetPriorityGrouping(4);
+
 }
+
+
+
 
 int
 main(void)
 {
-	nrf_gpio_cfg_output(17);
-	NVICInit();
-	SystickInit();
-
+#if SOFTDEVICE_ENABLED
 	nrf_clock_lf_cfg_t clockConfig;
 	clockConfig.source = NRF_CLOCK_LF_SRC_XTAL;
 	clockConfig.xtal_accuracy = NRF_CLOCK_LF_XTAL_ACCURACY_20_PPM;
@@ -54,6 +59,9 @@ main(void)
 	clockConfig.rc_temp_ctiv = 0;
 
 	uint32_t retval = sd_softdevice_enable(&clockConfig, SDFaultHandler);
+#endif
+	SystickInit();
+	nrf_gpio_cfg_output(17);
 
 	while(1)
 	{

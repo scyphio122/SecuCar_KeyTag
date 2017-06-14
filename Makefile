@@ -38,6 +38,7 @@ CFLAGS += 	-fno-builtin --short-enums
 #CFLAGS += 	-fomit-frame-pointer
 CFLAGS +=	-DNRF52832_XXAA
 CFLAGS += 	-DNRF52832
+CFLAGS +=   -DNRF52
 
 
 ASMFLAGS += -x assembler-with-cpp
