@@ -45,6 +45,7 @@ ASMFLAGS += -x assembler-with-cpp
 ASMFLAGS += -DARM_MATH_CM4
 ASMFLAGS += -mfloat-abi=hard
 ASMFLAGS += -mfpu=fpv4-sp-d16
+ASMFLAGS += -D__STARTUP_CLEAR_BSS	# Needed to zero BSS section in RAM by the startup code
 #------------------------ LINKER FLAGS --------------------------------
 
 LDFLAGS += -mcpu=cortex-m4
@@ -64,6 +65,8 @@ ASM_SOURCE_FILES += gcc_startup_nrf52.s
 C_SOURCE_FILES = src/main.c
 C_SOURCE_FILES += src/system_nrf52.c
 C_SOURCE_FILES += hardware/Systick.c
+C_SOURCE_FILES += hardware/UART.c
+C_SOURCE_FILES += hardware/SPI.c
 
 #------------------------ COMPILATION VARIABLES ------------------------
 

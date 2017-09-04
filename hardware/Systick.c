@@ -35,8 +35,8 @@ void SystickInit()
 	sd_softdevice_is_enabled((uint8_t*)(&sdEnabled));
 	if(sdEnabled)
 	{
-		sd_nvic_SetPriority(SysTick_IRQn, APPLICATION_IRQ_LOWEST_PRIORITY);
-		sd_nvic_EnableIRQ(SysTick_IRQn);
+		uint32_t retval = sd_nvic_SetPriority(SysTick_IRQn, APPLICATION_IRQ_LOWEST_PRIORITY);
+		retval = sd_nvic_EnableIRQ(SysTick_IRQn);
 	}
 
 #endif
