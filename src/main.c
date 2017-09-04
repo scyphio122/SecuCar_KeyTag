@@ -12,13 +12,14 @@
 #include <stdint-gcc.h>
 #include "nrf_gpio.h"
 #include "nrf52.h"
+#include "nrf52_bitfields.h"
 #include "core_cm4.h"
 #include "Systick.h"
 #include "nrf_sdm.h"
 #include "settings.h"
 #include "nrf_nvic.h"
 #include "UART.h"
-#include "nrf52_bitfields.h"
+#include "SPI.h"
 
 /*
  *
@@ -79,18 +80,21 @@ main(void)
 
 	SystickInit();
 
-	UartConfig(UART_BAUDRATE_BAUDRATE_Baud9600, UART_CONFIG_PARITY_Included, UART_CONFIG_HWFC_Disabled);
-	UartEnable();
-	UartSendDataSync("Hello World, it's nRF52!", sizeof("Hello World, it's nRF52!"));
+//	UartConfig(UART_BAUDRATE_BAUDRATE_Baud9600, UART_CONFIG_PARITY_Included, UART_CONFIG_HWFC_Disabled);
+//	UartEnable();
+//	UartSendDataSync("Hello World, it's nRF52!", sizeof("Hello World, it's nRF52!"));
 
-
+	SpiConfig(NRF_SPI0, SPI_FREQUENCY_FREQUENCY_M8, SPI_CONFIG_ORDER_MsbFirst, SPI_CONFIG_CPHA_Leading, SPI_CONFIG_CPOL_ActiveHigh);
+	SpiEnable(NRF_SPI0);
+	SpiWrite(NRF_SPI0, "Hello World, it's nRF52!", sizeof("Hello World, it's nRF52!"));
 //	UartReadDataEndCharSync(buf, '\n');
 	while(1)
 	{
 
-		UartReadDataEndCharSync(buf, '\r');
-		UartSendDataSync("\r\n", 3);
-		UartSendDataSync(buf, sizeof(buf));
+		//UartReadDataEndCharSync(buf, '\r');
+//		UartReadDataNumberSync(buf, 10);
+//		UartSendDataSync("\r\n", 3);
+//		UartSendDataSync(buf, sizeof(buf));
 
 	}
 

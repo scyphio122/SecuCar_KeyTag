@@ -11,7 +11,11 @@
 #include "nrf52.h"
 #include "nrf52_bitfields.h"
 #include <stdint-gcc.h>
+#include "settings.h"
 
+#define SPI0_PRIORITY	APPLICATION_IRQ_LOW_PRIORITY
+#define SPI1_PRIORITY	APPLICATION_IRQ_LOW_PRIORITY
+#define SPI2_PRIORITY	APPLICATION_IRQ_LOW_PRIORITY
 
 typedef enum
 {
@@ -36,19 +40,19 @@ typedef enum
 	E_SPI_MASTER
 }E_SPI_Type;
 
-void SPI_Config(NRF_SPI_Type* spi,
+void SpiConfig(NRF_SPI_Type* spi,
 				E_SPI_Frequency frequency,
 				uint8_t bytes_order,
 				uint8_t sck_phase,
 				uint8_t sck_polarity);
 
-void SPI_Enable(NRF_SPI_Type* spi);
+void SpiEnable(NRF_SPI_Type* spi);
 
-void SPI_Disable(NRF_SPI_Type* spi);
+void SpiDisable(NRF_SPI_Type* spi);
 
-E_SPI_Errors SPI_Write(NRF_SPI_Type* spi, uint8_t* in_buf, uint16_t data_size);
+E_SPI_Errors SpiWrite(NRF_SPI_Type* spi, uint8_t* in_buf, uint16_t data_size);
 
-E_SPI_Errors SPI_Read(NRF_SPI_Type* spi, uint8_t* out_buf, uint16_t data_size);
+E_SPI_Errors SpiRead(NRF_SPI_Type* spi, uint8_t* out_buf, uint16_t data_size);
 
 
 

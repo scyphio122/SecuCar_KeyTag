@@ -16,9 +16,9 @@
 
 /**< ########## SPI ############# **/
 #define SPI0_CS_PIN		(uint32_t)0xFFFFFFFF
-#define SPI0_SCK_PIN	(uint32_t)0xFFFFFFFF
-#define SPI0_MISO_PIN	(uint32_t)0xFFFFFFFF
-#define SPI0_MOSI_PIN	(uint32_t)0xFFFFFFFF
+#define SPI0_SCK_PIN	(uint32_t)6
+#define SPI0_MISO_PIN	(uint32_t)7
+#define SPI0_MOSI_PIN	(uint32_t)8
 
 #define SPI1_CS_PIN		(uint32_t)0xFFFFFFFF
 #define SPI1_SCK_PIN	(uint32_t)0xFFFFFFFF

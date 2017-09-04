@@ -54,7 +54,7 @@ volatile static bool	 s_spi2_is_reading;
 void SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0_IRQHandler()
 {
 	NRF_SPI0->EVENTS_READY = 0;
-
+	static uint8_t dummy;
 	if (s_spi0_is_reading)
 	{
 		s_spi0_read_buffer[s_spi0_bytes_received++] = NRF_SPI0->RXD;
@@ -73,6 +73,7 @@ void SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0_IRQHandler()
 	{
 		if (s_spi0_bytes_sent < s_spi0_bytes_to_send)
 		{
+			dummy = NRF_SPI0->RXD;
 			NRF_SPI0->TXD = s_spi0_write_buffer[s_spi0_bytes_sent++];
 		}
 	}
@@ -81,15 +82,15 @@ void SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0_IRQHandler()
 void SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQHandler()
 {
 	NRF_SPI1->EVENTS_READY = 0;
-
+	static uint8_t dummy;
 
 	if (s_spi1_is_reading)
 	{
-		s_spi1_read_buffer[s_spi1_bytes_received++] = NRF_SPI0->RXD;
+		s_spi1_read_buffer[s_spi1_bytes_received++] = NRF_SPI1->RXD;
 
 		if (s_spi1_bytes_received < s_spi1_bytes_to_read)
 		{
-			NRF_SPI0->TXD = SPI_DUMMY_BYTE;
+			NRF_SPI1->TXD = SPI_DUMMY_BYTE;
 		}
 		else
 		{
@@ -101,7 +102,8 @@ void SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQHandler()
 	{
 		if (s_spi1_bytes_sent < s_spi1_bytes_to_send)
 		{
-			NRF_SPI0->TXD = s_spi1_write_buffer[s_spi1_bytes_sent++];
+			dummy = NRF_SPI1->RXD;
+			NRF_SPI1->TXD = s_spi1_write_buffer[s_spi1_bytes_sent++];
 		}
 	}
 }
@@ -109,14 +111,15 @@ void SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQHandler()
 void SPIM2_SPIS2_SPI2_IRQHandler()
 {
 	NRF_SPI2->EVENTS_READY = 0;
+	static uint8_t dummy;
 
 	if (s_spi2_is_reading)
 	{
-		s_spi2_read_buffer[s_spi2_bytes_received++] = NRF_SPI0->RXD;
+		s_spi2_read_buffer[s_spi2_bytes_received++] = NRF_SPI2->RXD;
 
 		if (s_spi2_bytes_received < s_spi2_bytes_to_read)
 		{
-			NRF_SPI0->TXD = SPI_DUMMY_BYTE;
+			NRF_SPI2->TXD = SPI_DUMMY_BYTE;
 		}
 		else
 		{
@@ -128,18 +131,21 @@ void SPIM2_SPIS2_SPI2_IRQHandler()
 	{
 		if (s_spi2_bytes_sent < s_spi2_bytes_to_send)
 		{
-			NRF_SPI0->TXD = s_spi2_write_buffer[s_spi2_bytes_sent++];
+			dummy = NRF_SPI2->RXD;
+			NRF_SPI2->TXD = s_spi2_write_buffer[s_spi2_bytes_sent++];
 		}
 	}
 }
 
 
-void SPI_Config(NRF_SPI_Type* spi,
+void SpiConfig(NRF_SPI_Type* spi,
 				E_SPI_Frequency frequency,
 				uint8_t bytes_order,
 				uint8_t sck_phase,
 				uint8_t sck_polarity)
 {
+
+	uint32_t ret = 0xFFFFFFFF;
 	switch ((uint32_t)spi)
 	{
 		case (uint32_t)NRF_SPI0:
@@ -154,6 +160,14 @@ void SPI_Config(NRF_SPI_Type* spi,
 			spi->PSEL.SCK  = SPI0_SCK_PIN;
 			spi->PSEL.MISO = SPI0_MISO_PIN;
 			spi->PSEL.MOSI = SPI0_MOSI_PIN;
+
+			#if SOFTDEVICE_ENABLED
+				ret = sd_nvic_SetPriority(SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0_IRQn, SPI0_PRIORITY);
+				ret = sd_nvic_EnableIRQ(SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0_IRQn);
+			#else
+				NVIC_SetPriority(SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0_IRQn, SPI0_PRIORITY);
+				NVIC_EnableIRQ(SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0_IRQn);
+			#endif
 		}break;
 
 		case (uint32_t)NRF_SPI1:
@@ -168,6 +182,14 @@ void SPI_Config(NRF_SPI_Type* spi,
 			spi->PSEL.SCK  = SPI1_SCK_PIN;
 			spi->PSEL.MISO = SPI1_MISO_PIN;
 			spi->PSEL.MOSI = SPI1_MOSI_PIN;
+
+			#if SOFTDEVICE_ENABLED
+				sd_nvic_SetPriority(SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQn, SPI1_PRIORITY);
+				sd_nvic_EnableIRQ(SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQn);
+			#else
+				NVIC_SetPriority(SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQn, SPI1_PRIORITY);
+				NVIC_EnableIRQ(SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQn);
+			#endif
 		}break;
 
 		case (uint32_t)NRF_SPI2:
@@ -182,6 +204,14 @@ void SPI_Config(NRF_SPI_Type* spi,
 			spi->PSEL.SCK  = SPI2_SCK_PIN;
 			spi->PSEL.MISO = SPI2_MISO_PIN;
 			spi->PSEL.MOSI = SPI2_MOSI_PIN;
+
+			#if SOFTDEVICE_ENABLED
+				sd_nvic_SetPriority(SPIM2_SPIS2_SPI2_IRQn, SPI2_PRIORITY);
+				sd_nvic_EnableIRQ(SPIM2_SPIS2_SPI2_IRQn);
+			#else
+				NVIC_SetPriority(SPIM2_SPIS2_SPI2_IRQn, SPI2_PRIORITY);
+				NVIC_EnableIRQ(SPIM2_SPIS2_SPI2_IRQn);
+			#endif
 		}break;
 	}
 
@@ -190,17 +220,17 @@ void SPI_Config(NRF_SPI_Type* spi,
 	spi->CONFIG = (bytes_order << SPI_CONFIG_ORDER_Pos) | (sck_phase << SPI_CONFIG_CPHA_Pos) | (sck_polarity << SPI_CONFIG_CPOL_Pos);
 }
 
-void SPI_Enable(NRF_SPI_Type* spi)
+void SpiEnable(NRF_SPI_Type* spi)
 {
-	spi->ENABLE = SPI_ENABLE_ENABLE_Msk;
+	spi->ENABLE = SPI_ENABLE_ENABLE_Enabled << SPI_ENABLE_ENABLE_Pos;
 }
 
-void SPI_Disable(NRF_SPI_Type* spi)
+void SpiDisable(NRF_SPI_Type* spi)
 {
 	spi->ENABLE = 0;
 }
 
-E_SPI_Errors SPI_Write_Synchroneous(NRF_SPI_Type* spi, uint8_t* in_buf, uint16_t data_size)
+E_SPI_Errors SpiWrite(NRF_SPI_Type* spi, uint8_t* in_buf, uint16_t data_size)
 {
 	E_SPI_Errors error = E_SPI_SUCCESS;
 
@@ -211,6 +241,7 @@ E_SPI_Errors SPI_Write_Synchroneous(NRF_SPI_Type* spi, uint8_t* in_buf, uint16_t
 			s_spi0_bytes_sent = 0;
 			s_spi0_bytes_to_send = data_size;
 			s_spi0_write_buffer = in_buf;
+			s_spi0_is_reading = false;
 
 			NRF_SPI0->INTENSET = SPI_INTENSET_READY_Msk;
 			spi->TXD = in_buf[s_spi0_bytes_sent++];
@@ -233,6 +264,7 @@ E_SPI_Errors SPI_Write_Synchroneous(NRF_SPI_Type* spi, uint8_t* in_buf, uint16_t
 			s_spi1_bytes_sent = 0;
 			s_spi1_bytes_to_send = data_size;
 			s_spi1_write_buffer = in_buf;
+			s_spi1_is_reading = false;
 
 			NRF_SPI1->INTENSET = SPI_INTENSET_READY_Msk;
 			spi->TXD = in_buf[s_spi1_bytes_sent++];
@@ -256,6 +288,7 @@ E_SPI_Errors SPI_Write_Synchroneous(NRF_SPI_Type* spi, uint8_t* in_buf, uint16_t
 			s_spi2_bytes_sent = 0;
 			s_spi2_bytes_to_send = data_size;
 			s_spi2_write_buffer = in_buf;
+			s_spi2_is_reading = false;
 
 			NRF_SPI2->INTENSET = SPI_INTENSET_READY_Msk;
 			spi->TXD = in_buf[s_spi2_bytes_sent++];
@@ -277,7 +310,7 @@ E_SPI_Errors SPI_Write_Synchroneous(NRF_SPI_Type* spi, uint8_t* in_buf, uint16_t
 	return error;
 }
 
-E_SPI_Errors SPI_Read(NRF_SPI_Type* spi, uint8_t* out_buf, uint16_t data_size)
+E_SPI_Errors SpiRead(NRF_SPI_Type* spi, uint8_t* out_buf, uint16_t data_size)
 {
 	E_SPI_Errors error = E_SPI_SUCCESS;
 	switch ((uint32_t)spi)
