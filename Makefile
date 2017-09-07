@@ -1,10 +1,13 @@
-nRF52_SDK		= 	/home/konrad/Eclipse_Workspace/LIBS/nRF/nRF52_SDK_13_0
-S132_HEX_NAME   =   s132_nrf52_4.0.2_softdevice
+nRF52_SDK		= 	/home/konrad/Eclipse_Workspace/LIBS/nRF/nRF52_SDK_14_0
+S132_HEX_NAME   =   s132_nrf52_5.0.0_softdevice.hex
 S132_HEX 		= 	$(nRF52_SDK)/components/softdevice/s132/hex/$(S132_HEX_NAME)
 
 include $(nRF52_SDK)/sdk.mk
 
-CC = arm-none-eabi-gcc
+NO_ECHO := @
+
+CC = ~/Tools/GNU_ARM_GCC/gcc-arm-none-eabi-5_4-2016q3/bin/arm-none-eabi-gcc
+SIZE = ~/Tools/GNU_ARM_GCC/gcc-arm-none-eabi-5_4-2016q3/bin/arm-none-eabi-size
 OPTIMIZATION = -O0
 BUILD_FOLDER = Build_Output
 OUTPUT_BINARY_FOLDER = $(BUILD_FOLDER)
@@ -16,6 +19,17 @@ LINKER_COMMON_SCRIPT = nrf5x_common.ld
 
 INC_PATHS += -Iinc/
 INC_PATHS += -Ihardware/
+INC_PATHS += -Ibluetooth/
+INC_PATHS += -I$(nRF52_SDK)/components/ble/common/
+INC_PATHS += -I$(nRF52_SDK)/components/libraries/util/
+INC_PATHS += -I$(nRF52_SDK)/components/libraries/log/
+INC_PATHS += -I$(nRF52_SDK)/components/libraries/strerror/
+INC_PATHS += -I$(nRF52_SDK)/components/libraries/experimental_log/
+INC_PATHS += -I$(nRF52_SDK)/components/libraries/experimental_log/src/
+INC_PATHS += -I$(nRF52_SDK)/components/libraries/experimental_memobj/
+INC_PATHS += -I$(nRF52_SDK)/components/softdevice/common/
+INC_PATHS += -I$(nRF52_SDK)/config/
+INC_PATHS += -I$(nRF52_SDK)/components/libraries/experimental_section_vars/
 INC_PATHS += $(SDK_INCLUDE_PATHS) 
 
 #----------------------- COMPILING FLAGS ------------------------------
@@ -33,13 +47,19 @@ CFLAGS +=	-fmessage-length=0
 CFLAGS +=	-ffunction-sections
 CFLAGS +=	-fdata-sections
 CFLAGS += 	-fno-strict-aliasing
-CFLAGS +=	-g
+CFLAGS +=	-g3
 CFLAGS += 	-fno-builtin --short-enums
 #CFLAGS += 	-fomit-frame-pointer
 CFLAGS +=	-DNRF52832_XXAA
 CFLAGS += 	-DNRF52832
 CFLAGS +=   -DNRF52
-
+CFLAGS +=   -DBLE_STACK_SUPPORT_REQD
+CFLAGS +=   -DDEBUG
+CFLAGS +=   -DNRF_SD_BLE_API_VERSION=4
+CFLAGS +=   -DNRF_SDH_ENABLED
+CFLAGS +=   -DNRF_SDH_BLE_ENABLED
+CFLAGS +=   -DNRF_SECTION_ITER_ENABLED
+CFLAGS +=   -DS132
 
 ASMFLAGS += -x assembler-with-cpp
 ASMFLAGS += -DARM_MATH_CM4
@@ -54,10 +74,10 @@ LDFLAGS += -mfloat-abi=soft
 LDFLAGS += -mfpu=fpv4-sp-d16
 LDFLAGS += -Xlinker -Map=$(OUTPUT_BINARY_FOLDER)/$(OUTPUT_BINARY_NAME).map
 LDFLAGS += -Wl,--gc-sections
-LDFLAGS += --specs=nano.specs -lc 
-LDFLAGS += --specs=nosys.specs
+LDFLAGS += --specs=nano.specs -lc -lnosys
 LDFLAGS += -T"$(nRF52_SDK)/$(LINKER_SCRIPT)"
 LDFLAGS += -L"$(nRF52_SDK)"
+
 #----------------------- PROJECT SOURCES ------------------------------
 
 ASM_SOURCE_FILES += gcc_startup_nrf52.s
@@ -66,8 +86,17 @@ C_SOURCE_FILES = src/main.c
 C_SOURCE_FILES += src/system_nrf52.c
 C_SOURCE_FILES += hardware/Systick.c
 C_SOURCE_FILES += hardware/UART.c
-C_SOURCE_FILES += hardware/SPI.c
+C_SOURCE_FILES += hardware/SPI.c 
+C_SOURCE_FILES += bluetooth/advertising.c
+C_SOURCE_FILES += $(nRF52_SDK)/components/ble/common/ble_advdata.c
+C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/util/app_error.c
+C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/util/app_error_weak.c
+C_SOURCE_FILES += $(nRF52_SDK)/components/softdevice/common/nrf_sdh.c
+C_SOURCE_FILES += $(nRF52_SDK)/components/softdevice/common/nrf_sdh_ble.c
+C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/experimental_section_vars/nrf_section_iter.c
 
+#C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/experimental_log/src/nrf_log_frontend.c
+                 
 #------------------------ COMPILATION VARIABLES ------------------------
 
 # List of source file names without directories
@@ -111,11 +140,14 @@ $(OUTPUT_BINARY_FOLDER)/$(OUTPUT_BINARY_NAME).elf: $(OBJECTS)
 	arm-none-eabi-objcopy -O ihex "$@" "$(OUTPUT_BINARY_FOLDER)/$(OUTPUT_BINARY_NAME).hex"
 	arm-none-eabi-objcopy -O binary "$@" "$(OUTPUT_BINARY_FOLDER)/$(OUTPUT_BINARY_NAME).bin"
 	@echo "Finished linking..."
+
 	
 # Target for main compilation
 all: print_start_info $(BUILD_FOLDER) $(OUTPUT_BINARY_FOLDER)/$(OUTPUT_BINARY_NAME).elf
 	@echo "Finished building: $@"
 	@echo " "
+	@echo "Total hex size:"
+	$(NO_ECHO)$(SIZE) "$(OUTPUT_BINARY_FOLDER)/$(OUTPUT_BINARY_NAME).elf"
 
 # Target for cleaning the directory
 clean:
