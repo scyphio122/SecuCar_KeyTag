@@ -87,6 +87,7 @@ C_SOURCE_FILES += src/system_nrf52.c
 C_SOURCE_FILES += hardware/Systick.c
 C_SOURCE_FILES += hardware/UART.c
 C_SOURCE_FILES += hardware/SPI.c 
+C_SOURCE_FILES += hardware/RTC.c
 C_SOURCE_FILES += bluetooth/advertising.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/ble/common/ble_advdata.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/util/app_error.c

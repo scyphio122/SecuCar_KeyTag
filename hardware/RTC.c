@@ -8,6 +8,8 @@
 #include "RTC.h"
 #include "nrf52.h"
 #include "core_cm4.h"
+#include "nrf_nvic.h"
+#include "stdlib.h"
 
 #define DELAY_REGISTER_MAIN		0
 #define	TIMEOUT_REGISTER_MAIN 	1
@@ -78,12 +80,12 @@ void RTC2_IRQHandler()
 
 RTC_Error_e RTCDelay(NRF_RTC_Type* RTC, uint32_t time_ticks)
 {
-	bool* delayFlag = NULL;
+	volatile bool* delayFlag = NULL;
 
 	if (RTC == NRF_RTC1)
 	{
 		rtc1_delay_completed_flag = false;
-		delayFlag = &rtc1_delay_completed_flag
+		delayFlag = &rtc1_delay_completed_flag;
 	}
 	else
 	if (RTC == NRF_RTC2)
@@ -110,12 +112,12 @@ RTC_Error_e RTCDelay(NRF_RTC_Type* RTC, uint32_t time_ticks)
 
 RTC_Error_e RTCTimeout(NRF_RTC_Type* RTC, uint32_t time_ticks)
 {
-	bool* timoutFlag = NULL;
+	volatile bool* timoutFlag = NULL;
 
 	if (RTC == NRF_RTC1)
 	{
 		rtc1_timeout_triggered_flag = false;
-		timoutFlag = &rtc1_timeout_triggered_flag
+		timoutFlag = &rtc1_timeout_triggered_flag;
 	}
 	else
 	if (RTC == NRF_RTC2)
@@ -208,20 +210,20 @@ RTC_Error_e RTCInit(NRF_RTC_Type* RTC)
 	if (RTC != NRF_RTC0)
 		RTC->EVTENCLR |= RTC_EVTENCLR_COMPARE3_Enabled << RTC_EVTENCLR_COMPARE3_Pos;
 
-	switch (RTC)
+	switch ((uint32_t)RTC)
 	{
 
-		case NRF_RTC0:
+		case (uint32_t)NRF_RTC0:
 		{
 			RTC->PRESCALER = RTC0_PRESCALER;
 		}break;
 
-		case NRF_RTC1:
+		case (uint32_t)NRF_RTC1:
 		{
 			RTC->PRESCALER = RTC1_PRESCALER;
 		}break;
 
-		case NRF_RTC2:
+		case (uint32_t)NRF_RTC2:
 		{
 			RTC->PRESCALER = RTC2_PRESCALER;
 		}break;
