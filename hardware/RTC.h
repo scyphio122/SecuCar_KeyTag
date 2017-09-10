@@ -37,6 +37,12 @@ typedef enum
 	E_RTC_TIMEOUT,
 }RTC_Error_e;
 
+typedef struct
+{
+	bool activeFlag;
+	bool timeoutTriggeredFlag;
+}rtc_timeout_t;
+
 RTC_Error_e RTCInit(NRF_RTC_Type* RTC);
 RTC_Error_e RTCEnableComparingReg(NRF_RTC_Type* RTC, uint8_t registerNumber);
 RTC_Error_e RTCDisableComparingReg(NRF_RTC_Type* RTC, uint8_t registerNumber);
@@ -44,7 +50,7 @@ RTC_Error_e RTCStart(NRF_RTC_Type* RTC);
 RTC_Error_e RTCStop(NRF_RTC_Type* RTC);
 
 RTC_Error_e RTCDelay(NRF_RTC_Type* RTC, uint32_t time_ticks);
-RTC_Error_e RTCTimeout(NRF_RTC_Type* RTC, uint32_t time_ticks);
-RTC_Error_e RTCClearTimeout(NRF_RTC_Type* RTC);
+RTC_Error_e RTCTimeout(NRF_RTC_Type* RTC, uint32_t time_ticks, uint8_t* outTimeoutId);
+RTC_Error_e RTCClearTimeout(NRF_RTC_Type* RTC, uint8_t timeoutId);
 
 #endif /* HARDWARE_RTC_H_ */

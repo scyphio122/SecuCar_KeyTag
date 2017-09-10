@@ -97,8 +97,8 @@ void advertising_init(void)
     advdata.flags                 = flags;
     advdata.p_manuf_specific_data = &manuf_specific_data;
 
-    err_code = ble_advdata_set(&advdata, NULL);
-    APP_ERROR_CHECK(err_code);
+//    err_code = ble_advdata_set(&advdata, NULL);
+//    APP_ERROR_CHECK(err_code);
 
     // Initialize advertising parameters (used when starting advertising).
     memset(&m_adv_params, 0, sizeof(m_adv_params));
@@ -118,8 +118,6 @@ void advertising_start(void)
     ret_code_t err_code;
 
     err_code = sd_ble_gap_adv_start(&m_adv_params, APP_BLE_CONN_CFG_TAG);
-    APP_ERROR_CHECK(err_code);
-
     APP_ERROR_CHECK(err_code);
 }
 
@@ -144,6 +142,8 @@ void ble_stack_init(void)
     // Enable BLE stack.
     err_code = nrf_sdh_ble_enable(&ram_start);
     APP_ERROR_CHECK(err_code);
+
+    err_code = sd_ble_gap_device_name_set(NULL, "CarTracker", sizeof("CarTracker"));
 }
 
 

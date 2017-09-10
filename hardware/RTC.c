@@ -11,8 +11,17 @@
 #include "nrf_nvic.h"
 #include "stdlib.h"
 
-#define DELAY_REGISTER_MAIN		0
-#define	TIMEOUT_REGISTER_MAIN 	1
+#define DELAY_REGISTER_MAIN			0
+#define	TIMEOUT_REGISTER_MAIN 		1
+#define	TIMEOUT_REGISTER_SECOND		2
+#define TIMEOUT_REGISTER_THIRD  	3
+
+#define RTC_TIMEOUT_ARRAY_SIZE		3
+
+volatile rtc_timeout_t rtcTimeoutArray[RTC_TIMEOUT_ARRAY_SIZE];		/**< Array in which active timeout requests are held */
+volatile bool rtc1_delay_completed_flag;							/**< Delay flag - set to true if the delay has been completed */
+volatile bool rtc2_delay_completed_flag;							/**< Delay flag - set to true if the delay has been completed */
+volatile bool rtc2_timeout_triggered_flag;							/**< Timeout flag - set to true if the timeout has been triggered */
 
 #if !SOFTDEVICE_ENABLED
 void RTC0_IRQHandler()
@@ -20,12 +29,6 @@ void RTC0_IRQHandler()
 
 }
 #endif
-
-volatile bool rtc1_delay_completed_flag;					/**< Delay flag - set to true if the delay has been completed */
-volatile bool rtc1_timeout_triggered_flag;					/**< Timeout flag - set to true if the timeout has been triggered */
-
-volatile bool rtc2_delay_completed_flag;					/**< Delay flag - set to true if the delay has been completed */
-volatile bool rtc2_timeout_triggered_flag;					/**< Timeout flag - set to true if the timeout has been triggered */
 
 void RTC1_IRQHandler()
 {
@@ -38,17 +41,22 @@ void RTC1_IRQHandler()
 	if (NRF_RTC1->EVENTS_COMPARE[TIMEOUT_REGISTER_MAIN])		/*< RTC TIMEOUT */
 	{
 		NRF_RTC1->EVENTS_COMPARE[TIMEOUT_REGISTER_MAIN] = 0;
-		rtc1_timeout_triggered_flag = true;
+		RTCDisableComparingReg(NRF_RTC1, TIMEOUT_REGISTER_MAIN);
+		rtcTimeoutArray[TIMEOUT_REGISTER_MAIN - 1].timeoutTriggeredFlag = true;
 	}
 	else
-	if (NRF_RTC1->EVENTS_COMPARE[2])
+	if (NRF_RTC1->EVENTS_COMPARE[TIMEOUT_REGISTER_SECOND])		/*< RTC TIMEOUT SECOND */
 	{
-		NRF_RTC1->EVENTS_COMPARE[2] = 0;
+		NRF_RTC1->EVENTS_COMPARE[TIMEOUT_REGISTER_SECOND] = 0;
+		RTCDisableComparingReg(NRF_RTC1, TIMEOUT_REGISTER_SECOND);
+		rtcTimeoutArray[TIMEOUT_REGISTER_SECOND - 1].timeoutTriggeredFlag = true;
 	}
 	else
-	if (NRF_RTC1->EVENTS_COMPARE[3])
+	if (NRF_RTC1->EVENTS_COMPARE[TIMEOUT_REGISTER_THIRD])		/*< RTC TIMEOUT THIRD */
 	{
-		NRF_RTC1->EVENTS_COMPARE[3] = 0;
+		NRF_RTC1->EVENTS_COMPARE[TIMEOUT_REGISTER_THIRD] = 0;
+		RTCDisableComparingReg(NRF_RTC1, TIMEOUT_REGISTER_THIRD);
+		rtcTimeoutArray[TIMEOUT_REGISTER_THIRD - 1].timeoutTriggeredFlag = true;
 	}
 }
 
@@ -110,50 +118,34 @@ RTC_Error_e RTCDelay(NRF_RTC_Type* RTC, uint32_t time_ticks)
 	return E_RTC_OK;
 }
 
-RTC_Error_e RTCTimeout(NRF_RTC_Type* RTC, uint32_t time_ticks)
+RTC_Error_e RTCTimeout(NRF_RTC_Type* RTC, uint32_t time_ticks, uint8_t* outTimeoutId)
 {
 	volatile bool* timoutFlag = NULL;
 
-	if (RTC == NRF_RTC1)
+
+	for (uint8_t i=0; i<RTC_TIMEOUT_ARRAY_SIZE; ++i)
 	{
-		rtc1_timeout_triggered_flag = false;
-		timoutFlag = &rtc1_timeout_triggered_flag;
-	}
-	else
-	if (RTC == NRF_RTC2)
-	{
-		rtc2_timeout_triggered_flag = false;
-		timoutFlag = &rtc2_timeout_triggered_flag;
+		if (rtcTimeoutArray[i].activeFlag == false)
+		{
+			RTCEnableComparingReg(RTC, i+1);
+			RTC->CC[i+1] = RTC->COUNTER + time_ticks;
+			rtcTimeoutArray[i].activeFlag = true;
+			rtcTimeoutArray[i].timeoutTriggeredFlag = false;
+			*outTimeoutId = i;
+		}
 	}
 
-	RTCEnableComparingReg(RTC, TIMEOUT_REGISTER_MAIN);
-	RTC->CC[TIMEOUT_REGISTER_MAIN] = RTC->COUNTER + time_ticks;
-
-	while (!(*timoutFlag))
-	{
-#if SOFTDEVICE_ENABLED
-		sd_app_evt_wait();
-#else
-		__WFE();
-#endif
-	}
-	RTCDisableComparingReg(RTC, TIMEOUT_REGISTER_MAIN);
 
 	return E_RTC_TIMEOUT;
 }
 
-RTC_Error_e RTCClearTimeout(NRF_RTC_Type* RTC)
+RTC_Error_e RTCClearTimeout(NRF_RTC_Type* RTC, uint8_t timeoutId)
 {
-	RTC->EVTENCLR &= ~(1 << (TIMEOUT_REGISTER_MAIN + RTC_EVTENSET_COMPARE0_Pos));
-	RTCDisableComparingReg(RTC, TIMEOUT_REGISTER_MAIN);
 	if (RTC == NRF_RTC1)
 	{
-		rtc1_timeout_triggered_flag = false;
-	}
-	else
-	if (RTC == NRF_RTC2)
-	{
-		rtc2_timeout_triggered_flag = false;
+		rtcTimeoutArray[timeoutId].activeFlag = false;
+		rtcTimeoutArray[timeoutId].timeoutTriggeredFlag = false;
+		RTCDisableComparingReg(RTC, (timeoutId + 1));
 	}
 
 	return E_RTC_OK;
@@ -173,6 +165,7 @@ RTC_Error_e RTCInit(NRF_RTC_Type* RTC)
 	{
 		sd_nvic_SetPriority(RTC1_IRQn, RTC1_PRIORITY);
 		sd_nvic_EnableIRQ(RTC1_IRQn);
+		memset(rtcTimeoutArray, 0, sizeof(rtcTimeoutArray));
 	}
 
 	if (RTC == NRF_RTC2)
