@@ -55,7 +55,7 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
  * @details Encodes the required advertising data and passes it to the stack.
  *          Also builds a structure to be passed to the stack when starting advertising.
  */
-void advertising_init(void)
+void AdvertisingInit(void)
 {
     uint32_t      err_code;
     ble_advdata_t advdata;
@@ -97,8 +97,8 @@ void advertising_init(void)
     advdata.flags                 = flags;
     advdata.p_manuf_specific_data = &manuf_specific_data;
 
-//    err_code = ble_advdata_set(&advdata, NULL);
-//    APP_ERROR_CHECK(err_code);
+    err_code = ble_advdata_set(&advdata, NULL);
+    APP_ERROR_CHECK(err_code);
 
     // Initialize advertising parameters (used when starting advertising).
     memset(&m_adv_params, 0, sizeof(m_adv_params));
@@ -113,7 +113,7 @@ void advertising_init(void)
 
 /**@brief Function for starting advertising.
  */
-void advertising_start(void)
+void AdvertisingStart(void)
 {
     ret_code_t err_code;
 
@@ -126,7 +126,7 @@ void advertising_start(void)
  *
  * @details Initializes the SoftDevice and the BLE event interrupt.
  */
-void ble_stack_init(void)
+void BleStackInit(void)
 {
     ret_code_t err_code;
 

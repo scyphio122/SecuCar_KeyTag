@@ -70,17 +70,9 @@ int
 main(void)
 {
 #if SOFTDEVICE_ENABLED
-	nrf_clock_lf_cfg_t clockConfig;
-
-	clockConfig.source = NRF_CLOCK_LF_SRC_XTAL;
-	clockConfig.rc_ctiv = 0;
-	clockConfig.rc_temp_ctiv = 0;
-
-	uint32_t retval = sd_softdevice_enable(&clockConfig, SDFaultHandler);
-
-//	ble_stack_init();
-//	advertising_init();
-//	advertising_start();
+	BleStackInit();
+	AdvertisingInit();
+	AdvertisingStart();
 #endif
 	RTCInit(NRF_RTC1);
 	SystickInit();

@@ -34,7 +34,7 @@
 #endif
 
 
-void ble_stack_init(void);
-void advertising_init(void);
-void advertising_start(void);
+void BleStackInit(void);
+void AdvertisingInit(void);
+void AdvertisingStart(void);
 #endif /* BLUETOOTH_ADVERTISING_H_ */
