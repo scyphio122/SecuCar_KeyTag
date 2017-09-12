@@ -165,7 +165,6 @@ RTC_Error_e RTCInit(NRF_RTC_Type* RTC)
 	{
 		sd_nvic_SetPriority(RTC1_IRQn, RTC1_PRIORITY);
 		sd_nvic_EnableIRQ(RTC1_IRQn);
-		memset(rtcTimeoutArray, 0, sizeof(rtcTimeoutArray));
 	}
 
 	if (RTC == NRF_RTC2)

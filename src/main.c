@@ -65,11 +65,10 @@ void NVICInit()
 }
 
 uint8_t buf[64] = {0};
-
+uint8_t buf2[64];
 int
 main(void)
 {
-
 #if SOFTDEVICE_ENABLED
 	nrf_clock_lf_cfg_t clockConfig;
 

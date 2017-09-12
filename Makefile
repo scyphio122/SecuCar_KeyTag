@@ -1,4 +1,4 @@
-nRF52_SDK		= 	/home/konrad/Eclipse_Workspace/LIBS/nRF/nRF52_SDK_14_0
+nRF52_SDK		= 	nrf52sdk_14.0.0
 S132_HEX_NAME   =   s132_nrf52_5.0.0_softdevice.hex
 S132_HEX 		= 	$(nRF52_SDK)/components/softdevice/s132/hex/$(S132_HEX_NAME)
 
@@ -6,8 +6,11 @@ include $(nRF52_SDK)/sdk.mk
 
 NO_ECHO := @
 
-CC = ~/Tools/GNU_ARM_GCC/gcc-arm-none-eabi-5_4-2016q3/bin/arm-none-eabi-gcc
-SIZE = ~/Tools/GNU_ARM_GCC/gcc-arm-none-eabi-5_4-2016q3/bin/arm-none-eabi-size
+#CC = ~/Tools/GNU_ARM_GCC/gcc-arm-none-eabi-5_4-2016q3/bin/arm-none-eabi-gcc
+#SIZE = ~/Tools/GNU_ARM_GCC/gcc-arm-none-eabi-5_4-2016q3/bin/arm-none-eabi-size
+
+CC = arm-none-eabi-gcc
+SIZE = arm-none-eabi-size
 OPTIMIZATION = -O0
 BUILD_FOLDER = Build_Output
 OUTPUT_BINARY_FOLDER = $(BUILD_FOLDER)
@@ -74,10 +77,12 @@ LDFLAGS += -mfloat-abi=soft
 LDFLAGS += -mfpu=fpv4-sp-d16
 LDFLAGS += -Xlinker -Map=$(OUTPUT_BINARY_FOLDER)/$(OUTPUT_BINARY_NAME).map
 LDFLAGS += -Wl,--gc-sections
-LDFLAGS += --specs=nano.specs -lc -lnosys
 LDFLAGS += -T"$(nRF52_SDK)/$(LINKER_SCRIPT)"
 LDFLAGS += -L"$(nRF52_SDK)"
-
+LDFLAGS += -L/home/konrad/Tools/gcc-arm-none-eabi-6-2017-q2-update/arm-none-eabi/lib/thumb/v7e-m
+LDFLAGS += --specs=nano.specs -lc -lnosys
+LDFLAGS += -lgcc
+LDFLAGS += -v
 #----------------------- PROJECT SOURCES ------------------------------
 
 ASM_SOURCE_FILES += gcc_startup_nrf52.s
@@ -140,6 +145,7 @@ $(OUTPUT_BINARY_FOLDER)/$(OUTPUT_BINARY_NAME).elf: $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
 	arm-none-eabi-objcopy -O ihex "$@" "$(OUTPUT_BINARY_FOLDER)/$(OUTPUT_BINARY_NAME).hex"
 	arm-none-eabi-objcopy -O binary "$@" "$(OUTPUT_BINARY_FOLDER)/$(OUTPUT_BINARY_NAME).bin"
+	arm-none-eabi-objdump -S "$(OUTPUT_BINARY_FOLDER)/$(OUTPUT_BINARY_NAME).elf" > $(OUTPUT_BINARY_FOLDER)/$(OUTPUT_BINARY_NAME).lss
 	@echo "Finished linking..."
 
 	
