@@ -20,6 +20,7 @@
 #include "nrf_nvic.h"
 #include "UART.h"
 #include "SPI.h"
+#include "ble_common.h"
 #include "advertising.h"
 #include <string.h>
 #include "RTC.h"
@@ -76,6 +77,7 @@ main(void)
 #endif
 	RTCInit(NRF_RTC1);
 	SystickInit();
+
 //	UartConfig(UART_BAUDRATE_BAUDRATE_Baud9600, UART_CONFIG_PARITY_Included, UART_CONFIG_HWFC_Disabled);
 //	UartEnable();
 //	UartSendDataSync("Hello World, it's nRF52!", sizeof("Hello World, it's nRF52!"));

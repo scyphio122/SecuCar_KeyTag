@@ -62,6 +62,8 @@ CFLAGS +=   -DNRF_SD_BLE_API_VERSION=4
 CFLAGS +=   -DNRF_SDH_ENABLED
 CFLAGS +=   -DNRF_SDH_BLE_ENABLED
 CFLAGS +=   -DNRF_SECTION_ITER_ENABLED
+CFLAGS +=   -DNRF_BLE_GATT_ENABLED
+CFLAGS +=   -DBLE_DB_DISCOVERY_ENABLED
 CFLAGS +=   -DS132
 
 ASMFLAGS += -x assembler-with-cpp
@@ -80,6 +82,7 @@ LDFLAGS += -Wl,--gc-sections
 LDFLAGS += -T"$(nRF52_SDK)/$(LINKER_SCRIPT)"
 LDFLAGS += -L"$(nRF52_SDK)"
 LDFLAGS += -L/home/konrad/Tools/gcc-arm-none-eabi-6-2017-q2-update/arm-none-eabi/lib/thumb/v7e-m
+LDFlAGS += -Llibs/softfp
 LDFLAGS += --specs=nano.specs -lc -lnosys
 LDFLAGS += -lgcc
 LDFLAGS += -v
@@ -93,13 +96,17 @@ C_SOURCE_FILES += hardware/Systick.c
 C_SOURCE_FILES += hardware/UART.c
 C_SOURCE_FILES += hardware/SPI.c 
 C_SOURCE_FILES += hardware/RTC.c
+C_SOURCE_FILES += bluetooth/ble_common.c
 C_SOURCE_FILES += bluetooth/advertising.c
+C_SOURCE_FILES += bluetooth/ble_central.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/ble/common/ble_advdata.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/util/app_error.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/util/app_error_weak.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/softdevice/common/nrf_sdh.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/softdevice/common/nrf_sdh_ble.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/experimental_section_vars/nrf_section_iter.c
+C_SOURCE_FILES += $(nRF52_SDK)/components/ble/ble_db_discovery/ble_db_discovery.c
+C_SOURCE_FILES += $(nRF52_SDK)/components/ble/nrf_ble_gatt/nrf_ble_gatt.c 
 
 #C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/experimental_log/src/nrf_log_frontend.c
                  
