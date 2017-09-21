@@ -72,5 +72,5 @@ void BleStackInit(void);
 void GapParamsInit(void);
 void GattInit(void);
 void ConnParamsInit(void);
-
+void ServicesInit(void);
 #endif /* BLUETOOTH_BLE_COMMON_H_ */

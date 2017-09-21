@@ -19,6 +19,7 @@
 #include "nrf_sdh.h"
 #include "nrf_sdh_ble.h"
 #include "nrf_ble_gatt.h"
+#include "ble_uart_service.h"
 
 NRF_BLE_GATT_DEF(m_gatt);                                       /**< GATT module instance. */
 BLE_DB_DISCOVERY_DEF(m_db_disc);                                /**< DB discovery module instance. */
@@ -82,6 +83,8 @@ static void on_ble_evt(uint16_t conn_handle, ble_evt_t const * p_ble_evt)
     ret_code_t err_code;
     char passkey[BLE_GAP_PASSKEY_LEN + 1];
     uint16_t role = ble_conn_state_role(conn_handle);
+
+    BleUartOnBleEvt(&m_ble_uart, p_ble_evt);
 
     switch (p_ble_evt->header.evt_id)
     {
@@ -311,5 +314,18 @@ void BleStackInit(void)
 
     // Register a handler for BLE events.
     NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
+}
+
+/**@brief Function for initializing services that will be used by the application.
+ */
+void ServicesInit()
+{
+    uint32_t                        err_code;
+    ble_uart_init_t                 uart_init;
+
+    //handler assignement
+    uart_init.evt_handler = BleUartHandler;
+    err_code = BleUartServiceInit(&m_ble_uart, &uart_init);
+    APP_ERROR_CHECK(err_code);
 
 }

@@ -23,6 +23,7 @@ LINKER_COMMON_SCRIPT = nrf5x_common.ld
 INC_PATHS += -Iinc/
 INC_PATHS += -Ihardware/
 INC_PATHS += -Ibluetooth/
+INC_PATHS += -Ibluetooth/services/
 INC_PATHS += -I$(nRF52_SDK)/components/ble/common/
 INC_PATHS += -I$(nRF52_SDK)/components/libraries/
 INC_PATHS += -I$(nRF52_SDK)/components/libraries/util/
@@ -105,6 +106,7 @@ C_SOURCE_FILES += hardware/RTC.c
 C_SOURCE_FILES += bluetooth/ble_common.c
 C_SOURCE_FILES += bluetooth/advertising.c
 C_SOURCE_FILES += bluetooth/ble_central.c
+C_SOURCE_FILES += bluetooth/services/ble_uart_service.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/ble/common/ble_advdata.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/util/app_error.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/util/app_error_weak.c
@@ -114,11 +116,11 @@ C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/experimental_section_vars/nr
 C_SOURCE_FILES += $(nRF52_SDK)/components/ble/ble_db_discovery/ble_db_discovery.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/ble/nrf_ble_gatt/nrf_ble_gatt.c 
 C_SOURCE_FILES += $(nRF52_SDK)/components/ble/common/ble_conn_state.c
+C_SOURCE_FILES += $(nRF52_SDK)/components/ble/common/ble_srv_common.c
 #C_SOURCE_FILES += $(nRF52_SDK)/components/ble/common/ble_conn_params.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/ble/ble_advertising/ble_advertising.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/fstorage/nrf_fstorage.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/util/sdk_mapped_flags.c
-
 
 #C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/experimental_log/src/nrf_log_frontend.c
                  

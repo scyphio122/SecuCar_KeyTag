@@ -76,7 +76,7 @@ main(void)
 	GapParamsInit();
 	GattInit();
 //	ConnParamsInit();
-
+	ServicesInit();
 	AdvertisingInit();
 	AdvertisingStart();
 #endif
