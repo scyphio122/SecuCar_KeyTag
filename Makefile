@@ -82,10 +82,9 @@ LDFLAGS += -Wl,--gc-sections
 LDFLAGS += -T"$(nRF52_SDK)/$(LINKER_SCRIPT)"
 LDFLAGS += -L"$(nRF52_SDK)"
 LDFLAGS += -L/home/konrad/Tools/gcc-arm-none-eabi-6-2017-q2-update/arm-none-eabi/lib/thumb/v7e-m
-LDFlAGS += -Llibs/softfp
+LDFLAGS += -L/home/konrad/Tools/GNU_ARM_GCC/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/lib/armv7e-m 
 LDFLAGS += --specs=nano.specs -lc -lnosys
 LDFLAGS += -lgcc
-LDFLAGS += -v
 #----------------------- PROJECT SOURCES ------------------------------
 
 ASM_SOURCE_FILES += gcc_startup_nrf52.s

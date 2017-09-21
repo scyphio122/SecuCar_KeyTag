@@ -70,6 +70,7 @@ uint8_t buf2[64];
 int
 main(void)
 {
+	memset(buf, 0xFF, 64);
 #if SOFTDEVICE_ENABLED
 	BleStackInit();
 	AdvertisingInit();
