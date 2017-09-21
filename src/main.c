@@ -73,6 +73,10 @@ main(void)
 	memset(buf, 0xFF, 64);
 #if SOFTDEVICE_ENABLED
 	BleStackInit();
+	GapParamsInit();
+	GattInit();
+//	ConnParamsInit();
+
 	AdvertisingInit();
 	AdvertisingStart();
 #endif

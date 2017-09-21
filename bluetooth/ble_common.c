@@ -11,7 +11,10 @@
 #include "ble.h"
 #include "ble_db_discovery.h"
 #include "ble_hci.h"
+#include "ble_conn_params.h"
+#include "ble_conn_state.h"
 #include "ble_central.h"
+#include "advertising.h"
 #include "nrf_soc.h"
 #include "nrf_sdh.h"
 #include "nrf_sdh_ble.h"
@@ -20,8 +23,9 @@
 NRF_BLE_GATT_DEF(m_gatt);                                       /**< GATT module instance. */
 BLE_DB_DISCOVERY_DEF(m_db_disc);                                /**< DB discovery module instance. */
 
-
-/**@brief Callback function for asserts in the SoftDevice.
+ uint16_t           m_conn_handle_peripheral = BLE_CONN_HANDLE_INVALID;    /**< Connection handle for peripheral */
+ uint16_t           m_conn_handle_central = BLE_CONN_HANDLE_INVALID;    /**< Connection handle for central */
+/**@brief Function to handle asserts in the SoftDevice.
  *
  * @details This function will be called in case of an assert in the SoftDevice.
  *
@@ -29,100 +33,122 @@ BLE_DB_DISCOVERY_DEF(m_db_disc);                                /**< DB discover
  *          how your product is supposed to react in case of Assert.
  * @warning On assert from the SoftDevice, the system can only recover on reset.
  *
- * @param[in]   line_num   Line number of the failing ASSERT call.
- * @param[in]   file_name  File name of the failing ASSERT call.
+ * @param[in] line_num     Line number of the failing ASSERT call.
+ * @param[in] p_file_name  File name of the failing ASSERT call.
  */
 void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 {
-    app_error_handler(DEAD_BEEF, line_num, p_file_name);
+    app_error_handler(0xDEADBEEF, line_num, p_file_name);
 }
 
-/**@brief Function for handling BLE events.
+/**@brief Function for handling an event from the Connection Parameters Module.
  *
- * @param[in]   p_ble_evt   Bluetooth stack event.
- * @param[in]   p_context   Unused.
+ * @details This function will be called for all events in the Connection Parameters Module
+ *          which are passed to the application.
+ *
+ * @note All this function does is to disconnect. This could have been done by simply setting
+ *       the disconnect_on_fail config parameter, but instead we use the event handler
+ *       mechanism to demonstrate its use.
+ *
+ * @param[in] p_evt  Event received from the Connection Parameters Module.
  */
-static void ble_evt_handler(const ble_evt_t* p_ble_evt, void * p_context)
+static void on_conn_params_evt(ble_conn_params_evt_t * p_evt)
+{
+    uint32_t err_code;
+
+    if (p_evt->evt_type == BLE_CONN_PARAMS_EVT_FAILED)
+    {
+        err_code = sd_ble_gap_disconnect(m_conn_handle_peripheral, BLE_HCI_CONN_INTERVAL_UNACCEPTABLE);
+        APP_ERROR_CHECK(err_code);
+    }
+}
+
+
+/**@brief Function for handling errors from the Connection Parameters module.
+ *
+ * @param[in] nrf_error  Error code containing information about what went wrong.
+ */
+static void conn_params_error_handler(uint32_t nrf_error)
+{
+    APP_ERROR_HANDLER(nrf_error);
+}
+
+/**@brief Function for handling BLE Stack events common to both the central and peripheral roles.
+ * @param[in] conn_handle Connection Handle.
+ * @param[in] p_ble_evt  Bluetooth stack event.
+ */
+static void on_ble_evt(uint16_t conn_handle, ble_evt_t const * p_ble_evt)
 {
     ret_code_t err_code;
-
-    // For readability.
-    const ble_gap_evt_t* p_gap_evt = &p_ble_evt->evt.gap_evt;
+    char passkey[BLE_GAP_PASSKEY_LEN + 1];
+    uint16_t role = ble_conn_state_role(conn_handle);
 
     switch (p_ble_evt->header.evt_id)
     {
-        // Upon connection, check which peripheral has connected (HR or RSC), initiate DB
-        // discovery, update LEDs status and resume scanning if necessary. */
         case BLE_GAP_EVT_CONNECTED:
-        {
+            m_connected_peers[conn_handle].is_connected = true;
+            m_connected_peers[conn_handle].address = p_ble_evt->evt.gap_evt.params.connected.peer_addr;
+            break;
 
-            err_code = ble_db_discovery_start(&m_db_disc, p_gap_evt->conn_handle);
-            APP_ERROR_CHECK(err_code);
-
-            // Update LEDs status, and check if we should be looking for more
-            // peripherals to connect to.
-        } break;
-
-        // Upon disconnection, reset the connection handle of the peer which disconnected, update
-        // the LEDs status and start scanning again.
         case BLE_GAP_EVT_DISCONNECTED:
-        {
-#ifdef BLE_CENTRAL
-        	BleCentralStartScaning();
-#elif  BLE_PERIPHERAL
+            memset(&m_connected_peers[conn_handle], 0x00, sizeof(m_connected_peers[0]));
+            break;
 
-#endif
-        } break;
+        case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
+            break;
 
-        case BLE_GAP_EVT_ADV_REPORT:
-        {
-            on_adv_report(p_ble_evt);
-        } break;
-
-        case BLE_GAP_EVT_TIMEOUT:
-        {
-            // We have not specified a timeout for scanning, so only connection attemps can timeout.
-            if (p_gap_evt->params.timeout.src == BLE_GAP_TIMEOUT_SRC_CONN)
-            {
-            }
-        } break;
-
-        case BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST:
-        {
-            // Accept parameters requested by peer.
-            err_code = sd_ble_gap_conn_param_update(p_gap_evt->conn_handle,
-                                        &p_gap_evt->params.conn_param_update_request.conn_params);
-            APP_ERROR_CHECK(err_code);
-        } break;
-
-#if defined(S132)
-        case BLE_GAP_EVT_PHY_UPDATE_REQUEST:
-        {
-            ble_gap_phys_t const phys =
-            {
-                .rx_phys = BLE_GAP_PHY_AUTO,
-                .tx_phys = BLE_GAP_PHY_AUTO,
-            };
-            err_code = sd_ble_gap_phy_update(p_ble_evt->evt.gap_evt.conn_handle, &phys);
-            APP_ERROR_CHECK(err_code);
-        } break;
-#endif
-
-        case BLE_GATTC_EVT_TIMEOUT:
-        {
-            // Disconnect on GATT Client timeout event.
-            err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gattc_evt.conn_handle,
-                                             BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
-            APP_ERROR_CHECK(err_code);
-        } break;
-
-        case BLE_GATTS_EVT_TIMEOUT:
-        {
-            // Disconnect on GATT Server timeout event.
-            err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gatts_evt.conn_handle,
-                                             BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
-            APP_ERROR_CHECK(err_code);
-        } break;
+//        case BLE_GAP_EVT_PASSKEY_DISPLAY:
+//            memcpy(passkey, p_ble_evt->evt.gap_evt.params.passkey_display.passkey, BLE_GAP_PASSKEY_LEN);
+//            passkey[BLE_GAP_PASSKEY_LEN] = 0x00;
+//            NRF_LOG_INFO("%s: BLE_GAP_EVT_PASSKEY_DISPLAY: passkey=%s match_req=%d",
+//                         nrf_log_push(roles_str[role]),
+//                         nrf_log_push(passkey),
+//                         p_ble_evt->evt.gap_evt.params.passkey_display.match_request);
+//
+//            if (p_ble_evt->evt.gap_evt.params.passkey_display.match_request)
+//            {
+//                NRF_LOG_INFO("Press Button 1 to confirm, Button 2 to reject");
+//                m_num_comp_conn_handle = conn_handle;
+//                m_numneric_match_requested = true;
+//            }
+//            break;
+//
+//        case BLE_GAP_EVT_AUTH_KEY_REQUEST:
+//            NRF_LOG_INFO("%s: BLE_GAP_EVT_AUTH_KEY_REQUEST", nrf_log_push(roles_str[role]));
+//            break;
+//
+//        case BLE_GAP_EVT_LESC_DHKEY_REQUEST:
+//            NRF_LOG_INFO("%s: BLE_GAP_EVT_LESC_DHKEY_REQUEST", nrf_log_push(roles_str[role]));
+//
+//            static nrf_value_length_t peer_public_key_raw = {0};
+//
+//            peer_public_key_raw.p_value = &p_ble_evt->evt.gap_evt.params.lesc_dhkey_request.p_pk_peer->pk[0];
+//            peer_public_key_raw.length = BLE_GAP_LESC_P256_PK_LEN;
+//
+//            err_code = nrf_crypto_ecc_public_key_from_raw(NRF_CRYPTO_BLE_ECDH_CURVE_INFO,
+//                                                          &peer_public_key_raw,
+//                                                          &m_peer_public_key);
+//            APP_ERROR_CHECK(err_code);
+//
+//            err_code = nrf_crypto_ecdh_shared_secret_compute(NRF_CRYPTO_BLE_ECDH_CURVE_INFO,
+//                                                             &m_private_key,
+//                                                             &m_peer_public_key,
+//                                                             &m_dh_key);
+//            APP_ERROR_CHECK(err_code);
+//
+//            err_code = sd_ble_gap_lesc_dhkey_reply(conn_handle, &m_lesc_dh_key);
+//            APP_ERROR_CHECK(err_code);
+//            break;
+//
+//         case BLE_GAP_EVT_AUTH_STATUS:
+//             NRF_LOG_INFO("%s: BLE_GAP_EVT_AUTH_STATUS: status=0x%x bond=0x%x lv4: %d kdist_own:0x%x kdist_peer:0x%x",
+//                          nrf_log_push(roles_str[role]),
+//                          p_ble_evt->evt.gap_evt.params.auth_status.auth_status,
+//                          p_ble_evt->evt.gap_evt.params.auth_status.bonded,
+//                          p_ble_evt->evt.gap_evt.params.auth_status.sm1_levels.lv4,
+//                          *((uint8_t *)&p_ble_evt->evt.gap_evt.params.auth_status.kdist_own),
+//                          *((uint8_t *)&p_ble_evt->evt.gap_evt.params.auth_status.kdist_peer));
+//            break;
 
         default:
             // No implementation needed.
@@ -130,6 +156,136 @@ static void ble_evt_handler(const ble_evt_t* p_ble_evt, void * p_context)
     }
 }
 
+/**@brief Function for handling BLE events.
+ *
+ * @param[in]   p_ble_evt   Bluetooth stack event.
+ * @param[in]   p_context   Unused.
+ */
+static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
+{
+    uint16_t conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
+    uint16_t role        = ble_conn_state_role(conn_handle);
+
+    if (    (p_ble_evt->header.evt_id == BLE_GAP_EVT_CONNECTED)
+        &&  (IsAlreadyConnected(&p_ble_evt->evt.gap_evt.params.connected.peer_addr)))
+    {
+        (void)sd_ble_gap_disconnect(conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+
+        // Do not process the event further.
+        return;
+    }
+
+    on_ble_evt(conn_handle, p_ble_evt);
+
+    if (role == BLE_GAP_ROLE_PERIPH)
+    {
+        // Manages peripheral LEDs.
+        on_ble_peripheral_evt(p_ble_evt);
+    }
+    else if ((role == BLE_GAP_ROLE_CENTRAL) || (p_ble_evt->header.evt_id == BLE_GAP_EVT_ADV_REPORT))
+    {
+        on_ble_central_evt(p_ble_evt);
+    }
+}
+
+/**@brief Function for the GAP initialization.
+ *
+ * @details This function sets up all the necessary GAP (Generic Access Profile) parameters of the
+ *          device including the device name, appearance, and the preferred connection parameters.
+ */
+void GapParamsInit(void)
+{
+    ret_code_t              err_code;
+    ble_gap_conn_params_t   gap_conn_params;
+    ble_gap_conn_sec_mode_t sec_mode;
+
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&sec_mode);
+
+    err_code = sd_ble_gap_device_name_set(&sec_mode,
+                                          (const uint8_t *)DEVICE_NAME,
+                                          strlen(DEVICE_NAME));
+    APP_ERROR_CHECK(err_code);
+
+    memset(&gap_conn_params, 0, sizeof(gap_conn_params));
+
+    gap_conn_params.min_conn_interval = MIN_CONNECTION_INTERVAL;
+    gap_conn_params.max_conn_interval = MAX_CONNECTION_INTERVAL;
+    gap_conn_params.slave_latency     = SLAVE_LATENCY;
+    gap_conn_params.conn_sup_timeout  = SUPERVISION_TIMEOUT;
+
+    err_code = sd_ble_gap_ppcp_set(&gap_conn_params);
+    APP_ERROR_CHECK(err_code);
+}
+
+
+/**@brief Function for initializing the GATT module. */
+void GattInit(void)
+{
+    ret_code_t err_code = nrf_ble_gatt_init(&m_gatt, NULL);
+    APP_ERROR_CHECK(err_code);
+}
+
+
+/**@brief Function for initializing the Connection Parameters module. */
+void ConnParamsInit(void)
+{
+    ret_code_t             err_code;
+    ble_conn_params_init_t cp_init;
+
+    memset(&cp_init, 0, sizeof(cp_init));
+
+    cp_init.p_conn_params                  = NULL;
+    cp_init.first_conn_params_update_delay = FIRST_CONN_PARAMS_UPDATE_DELAY;
+    cp_init.next_conn_params_update_delay  = NEXT_CONN_PARAMS_UPDATE_DELAY;
+    cp_init.max_conn_params_update_count   = MAX_CONN_PARAMS_UPDATE_COUNT;
+    cp_init.start_on_notify_cccd_handle    = BLE_CONN_HANDLE_INVALID; // Start upon connection.
+    cp_init.disconnect_on_fail             = true;
+    cp_init.evt_handler                    = NULL;  // Ignore events.
+    cp_init.error_handler                  = conn_params_error_handler;
+
+    err_code = ble_conn_params_init(&cp_init);
+    APP_ERROR_CHECK(err_code);
+}
+
+/**@brief Function for initializing the Peer Manager. */
+void PeerManagerInit(void)
+{
+//    ble_gap_sec_params_t sec_params;
+//    ret_code_t err_code;
+//
+//    err_code = pm_init();
+//    APP_ERROR_CHECK(err_code);
+//
+//    memset(&sec_params, 0, sizeof(ble_gap_sec_params_t));
+//
+//    // Security parameters to be used for all security procedures.
+//    sec_params.bond           = SEC_PARAMS_BOND;
+//    sec_params.mitm           = SEC_PARAMS_MITM;
+//    sec_params.lesc           = SEC_PARAMS_LESC;
+//    sec_params.keypress       = SEC_PARAMS_KEYPRESS;
+//    sec_params.io_caps        = SEC_PARAMS_IO_CAPABILITIES;
+//    sec_params.oob            = SEC_PARAMS_OOB;
+//    sec_params.min_key_size   = SEC_PARAMS_MIN_KEY_SIZE;
+//    sec_params.max_key_size   = SEC_PARAMS_MAX_KEY_SIZE;
+//    sec_params.kdist_own.enc  = 1;
+//    sec_params.kdist_own.id   = 1;
+//    sec_params.kdist_peer.enc = 1;
+//    sec_params.kdist_peer.id  = 1;
+//
+//    err_code = pm_sec_params_set(&sec_params);
+//    APP_ERROR_CHECK(err_code);
+//
+//    err_code = pm_register(pm_evt_handler);
+//    APP_ERROR_CHECK(err_code);
+//
+//    err_code = fds_register(fds_evt_handler);
+//    APP_ERROR_CHECK(err_code);
+//
+//    // Private public keypair must be generated at least once for each device. It can be stored
+//    // beyond this point. Here it is generated at bootup.
+//    err_code = lesc_generate_key_pair();
+//    APP_ERROR_CHECK(err_code);
+}
 
 
 /**@brief Function for initializing the BLE stack.

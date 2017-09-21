@@ -24,7 +24,10 @@ INC_PATHS += -Iinc/
 INC_PATHS += -Ihardware/
 INC_PATHS += -Ibluetooth/
 INC_PATHS += -I$(nRF52_SDK)/components/ble/common/
+INC_PATHS += -I$(nRF52_SDK)/components/libraries/
 INC_PATHS += -I$(nRF52_SDK)/components/libraries/util/
+INC_PATHS += -I$(nRF52_SDK)/components/libraries/experimental_section_vars/
+INC_PATHS += -I$(nRF52_SDK)/components/libraries/fstorage/
 INC_PATHS += -I$(nRF52_SDK)/components/libraries/log/
 INC_PATHS += -I$(nRF52_SDK)/components/libraries/strerror/
 INC_PATHS += -I$(nRF52_SDK)/components/libraries/experimental_log/
@@ -32,7 +35,6 @@ INC_PATHS += -I$(nRF52_SDK)/components/libraries/experimental_log/src/
 INC_PATHS += -I$(nRF52_SDK)/components/libraries/experimental_memobj/
 INC_PATHS += -I$(nRF52_SDK)/components/softdevice/common/
 INC_PATHS += -I$(nRF52_SDK)/config/
-INC_PATHS += -I$(nRF52_SDK)/components/libraries/experimental_section_vars/
 INC_PATHS += $(SDK_INCLUDE_PATHS) 
 
 #----------------------- COMPILING FLAGS ------------------------------
@@ -58,13 +60,18 @@ CFLAGS += 	-DNRF52832
 CFLAGS +=   -DNRF52
 CFLAGS +=   -DBLE_STACK_SUPPORT_REQD
 CFLAGS +=   -DDEBUG
+CFLAGS +=   -DNRF_FSTORAGE_ENABLED
+CFLAGS +=   -DNRF_BLE_CONN_PARAMS_ENABLED
 CFLAGS +=   -DNRF_SD_BLE_API_VERSION=4
 CFLAGS +=   -DNRF_SDH_ENABLED
 CFLAGS +=   -DNRF_SDH_BLE_ENABLED
 CFLAGS +=   -DNRF_SECTION_ITER_ENABLED
 CFLAGS +=   -DNRF_BLE_GATT_ENABLED
 CFLAGS +=   -DBLE_DB_DISCOVERY_ENABLED
+CFLAGS +=   -DBLE_ADVERTISING_ENABLED
 CFLAGS +=   -DS132
+CFLAGS +=   -DNRF_SDH_BLE_PERIPHERAL_LINK_COUNT=1
+CFLAGS +=   -DNRF_SDH_BLE_CENTRAL_LINK_COUNT=1
 
 ASMFLAGS += -x assembler-with-cpp
 ASMFLAGS += -DARM_MATH_CM4
@@ -106,6 +113,12 @@ C_SOURCE_FILES += $(nRF52_SDK)/components/softdevice/common/nrf_sdh_ble.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/experimental_section_vars/nrf_section_iter.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/ble/ble_db_discovery/ble_db_discovery.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/ble/nrf_ble_gatt/nrf_ble_gatt.c 
+C_SOURCE_FILES += $(nRF52_SDK)/components/ble/common/ble_conn_state.c
+#C_SOURCE_FILES += $(nRF52_SDK)/components/ble/common/ble_conn_params.c
+C_SOURCE_FILES += $(nRF52_SDK)/components/ble/ble_advertising/ble_advertising.c
+C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/fstorage/nrf_fstorage.c
+C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/util/sdk_mapped_flags.c
+
 
 #C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/experimental_log/src/nrf_log_frontend.c
                  
