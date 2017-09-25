@@ -31,6 +31,7 @@
 #define DEAD_BEEF                       0xDEADBEEF                        /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 #define APP_BLE_CONN_CFG_TAG            1                                 /**< A tag identifying the SoftDevice BLE configuration. */
 #define APP_BLE_OBSERVER_PRIO           1                                   /**< Application's BLE observer priority. You shouldn't need to modify this value. */
+#define APP_SOC_OBSERVER_PRIO           1
 
 #define SEC_PARAMS_BOND                 1                                               /**< Perform bonding. */
 #if LESC_MITM_NC

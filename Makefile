@@ -106,6 +106,7 @@ C_SOURCE_FILES += hardware/Systick.c
 C_SOURCE_FILES += hardware/UART.c
 C_SOURCE_FILES += hardware/SPI.c 
 C_SOURCE_FILES += hardware/RTC.c
+C_SOURCE_FILES += hardware/internal_flash.c
 C_SOURCE_FILES += bluetooth/ble_common.c
 C_SOURCE_FILES += bluetooth/advertising.c
 C_SOURCE_FILES += bluetooth/ble_central.c
