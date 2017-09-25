@@ -27,6 +27,7 @@ INC_PATHS += -Ibluetooth/services/
 INC_PATHS += -I$(nRF52_SDK)/components/ble/common/
 INC_PATHS += -I$(nRF52_SDK)/components/libraries/
 INC_PATHS += -I$(nRF52_SDK)/components/libraries/util/
+INC_PATHS += -I$(nRF52_SDK)/components/libraries/fifo/
 INC_PATHS += -I$(nRF52_SDK)/components/libraries/experimental_section_vars/
 INC_PATHS += -I$(nRF52_SDK)/components/libraries/fstorage/
 INC_PATHS += -I$(nRF52_SDK)/components/libraries/log/
@@ -70,6 +71,7 @@ CFLAGS +=   -DNRF_SECTION_ITER_ENABLED
 CFLAGS +=   -DNRF_BLE_GATT_ENABLED
 CFLAGS +=   -DBLE_DB_DISCOVERY_ENABLED
 CFLAGS +=   -DBLE_ADVERTISING_ENABLED
+CFLAGS +=   -DAPP_FIFO_ENABLED
 CFLAGS +=   -DS132
 CFLAGS +=   -DNRF_SDH_BLE_PERIPHERAL_LINK_COUNT=1
 CFLAGS +=   -DNRF_SDH_BLE_CENTRAL_LINK_COUNT=1
@@ -99,6 +101,7 @@ ASM_SOURCE_FILES += gcc_startup_nrf52.s
 
 C_SOURCE_FILES = src/main.c
 C_SOURCE_FILES += src/system_nrf52.c
+C_SOURCE_FILES += src/fifo.c
 C_SOURCE_FILES += hardware/Systick.c
 C_SOURCE_FILES += hardware/UART.c
 C_SOURCE_FILES += hardware/SPI.c 
@@ -121,6 +124,8 @@ C_SOURCE_FILES += $(nRF52_SDK)/components/ble/common/ble_srv_common.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/ble/ble_advertising/ble_advertising.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/fstorage/nrf_fstorage.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/util/sdk_mapped_flags.c
+C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/fifo/app_fifo.c
+
 
 #C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/experimental_log/src/nrf_log_frontend.c
                  
@@ -191,3 +196,6 @@ print_start_info:
 $(BUILD_FOLDER):
 	@mkdir $(BUILD_FOLDER)
 	
+program_softdevice:
+	nrfjprog -e
+	nrfjprog --program $(S132_HEX)

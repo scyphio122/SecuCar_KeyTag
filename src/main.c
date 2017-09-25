@@ -24,7 +24,7 @@
 #include "advertising.h"
 #include <string.h>
 #include "RTC.h"
-
+#include "ble_uart_service.h"
 /*
  *
  * Print a greeting message on standard output and exit.
@@ -95,8 +95,9 @@ main(void)
 	nrf_gpio_cfg_output(17);
 	while(1)
 	{
-		RTCDelay(NRF_RTC1, RTC1_MS_TO_TICKS(1000));
-		nrf_gpio_pin_toggle(17);
+	    BleUartServicePendingTasks();
+//		RTCDelay(NRF_RTC1, RTC1_MS_TO_TICKS(1000));
+//		nrf_gpio_pin_toggle(17);
 	}
 
   return 0;

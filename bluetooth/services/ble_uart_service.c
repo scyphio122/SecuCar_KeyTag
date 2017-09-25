@@ -9,10 +9,12 @@
 #include <ble_gap.h>
 #include <ble_gatt.h>
 #include <ble_srv_common.h>
+#include "ble_common.h"
 #include <string.h>
 #include <malloc.h>
 #include "RTC.h"
-
+#include "fifo.h"
+#include "app_fifo.h"
 
 #define SECUCAR_UUID_BASE                {(uint8_t)0xb0, (uint8_t)0x07, (uint8_t)0x20, (uint8_t)0xac, (uint8_t)0xca, (uint8_t)0x16, (uint8_t)0x20, (uint8_t)0x3c, (uint8_t)0xb9, (uint8_t)0xe7, (uint8_t)0x14, (uint8_t)0x72, (uint8_t)0x00, (uint8_t)0x00, (uint8_t)0x04, (uint8_t)0xac}
 
@@ -26,7 +28,40 @@ static uint8_t              ble_uart_tx_buffer[20];                         /**<
 static uint8_t              ble_uart_rx_buffer[20];                         /**< Buffer for incomming from central data */
 static volatile uint16_t    ble_uart_tx_data_size;                          /**< Size of data which are to be send */
 static uint8_t*             ble_data_ptr;                                   /**< Pointer where the data will be stored. It will be dynamically allocated buffer */
+static uint8_t*             ble_current_data_ptr;
 static volatile uint8_t     ble_uart_data_dynamically_allocated;
+
+static app_fifo_t           ble_uart_pending_requests_fifo;
+static uint8_t              ble_uart_pending_requests_fifo_buffer[16];
+
+uint32_t BleUartAddPendingTask(ble_uart_communication_commands_e command)
+{
+    FifoPut(&ble_uart_pending_requests_fifo, command);
+
+    return NRF_SUCCESS;
+}
+
+uint32_t BleUartServicePendingTasks()
+{
+    ble_uart_communication_commands_e command;
+    while (!FifoIsEmpty(&ble_uart_pending_requests_fifo))
+    {
+        FifoGet(&ble_uart_pending_requests_fifo, (uint8_t*)&command);
+
+        switch (command)
+        {
+            case E_TEST:
+            {
+                uint32_t size = sizeof("Litwo, Ojczyzno moja! Ile Cie trzeba cenic");
+                char* test = malloc(size);
+                memcpy(test, "Litwo, Ojczyzno moja! Ile Cie trzeba cenic", size);
+                BleUartDataIndicate(m_conn_handle_peripheral, E_TEST, test, size, true);
+            }break;
+        }
+    }
+
+    return NRF_SUCCESS;
+}
 
 /**@brief Function for handling the Connect event.
  *
@@ -272,6 +307,8 @@ static uint32_t _BleUartRxHandler(uint8_t* p_data, uint8_t data_size)
     uint8_t request_code = p_data[0];
     uint32_t err_code = 0;
 
+    BleUartAddPendingTask(E_TEST);
+
     switch(request_code)
     {
 
@@ -325,6 +362,7 @@ static uint32_t _BleUartIndicateSendSinglePacket(ble_uart_t* p_uart, uint8_t* da
             err_code = sd_ble_gatts_hvx(p_uart->conn_handle, &hvx_params);
 
             ble_uart_tx_data_size -= actual_data_size;
+            ble_current_data_ptr += actual_data_size;
 
             return NRF_SUCCESS;
         }
@@ -345,9 +383,9 @@ static uint32_t _BleUartIndicateSendNextPacket(ble_uart_t* p_uart)
 {
     uint32_t err_code = 0;
     if(ble_uart_tx_data_size > 19)
-        err_code = _BleUartIndicateSendSinglePacket(p_uart, &ble_data_ptr[ble_uart_tx_data_size], 19);
+        err_code = _BleUartIndicateSendSinglePacket(p_uart, ble_current_data_ptr, 19);
     else
-        err_code = _BleUartIndicateSendSinglePacket(p_uart, &ble_data_ptr[ble_uart_tx_data_size], ble_uart_tx_data_size);
+        err_code = _BleUartIndicateSendSinglePacket(p_uart, ble_current_data_ptr, ble_uart_tx_data_size);
 
     return err_code;
 }
@@ -364,14 +402,16 @@ static uint32_t _BleUartIndicateSendNextPacket(ble_uart_t* p_uart)
  */
 uint32_t BleUartDataIndicate( uint16_t conn_handle, uint8_t command_code, uint8_t* data, uint16_t data_size, uint8_t data_buf_dynamically_allocated)
 {
-    if(conn_handle != BLE_CONN_HANDLE_INVALID)
-    {
+//    if(conn_handle != BLE_CONN_HANDLE_INVALID)
+//    {
         /// Set the flag to indicate that message is going to be sent
         ble_tx_in_progress = 1;
         /// Set the size of data which are to be sent
         ble_uart_tx_data_size = data_size;
         /// Set the pointer to the data
         ble_data_ptr = data;
+        ble_current_data_ptr = data;
+
         /// Set the command code in the buffer
         ble_uart_tx_buffer[0] = command_code;
         /// Set the buffer allocation flasg
@@ -381,7 +421,7 @@ uint32_t BleUartDataIndicate( uint16_t conn_handle, uint8_t command_code, uint8_
             _BleUartIndicateSendSinglePacket(&m_ble_uart, data, 19); /// Send the first packet (19 bytes, because the first one is command code)
         else
             _BleUartIndicateSendSinglePacket(&m_ble_uart, data, data_size);  /// If there is only 1 message to send
-    }
+//    }
     return NRF_SUCCESS;
 }
 
@@ -436,8 +476,8 @@ static uint32_t _BleUartNotifySendSinglePacket(ble_uart_t* p_uart, uint8_t* data
                 sd_ble_gatts_hvx(p_uart->conn_handle, &hvx_params);
             }
 
-
             ble_uart_tx_data_size -= data_size;
+            ble_current_data_ptr += data_size;
 
             return NRF_SUCCESS;
         }
@@ -458,9 +498,9 @@ static uint32_t _BleUartNotifySendNextPacket(ble_uart_t* p_uart)
 {
     uint32_t err_code = 0;
     if(ble_uart_tx_data_size > 19)
-        err_code = _BleUartNotifySendSinglePacket(p_uart, &ble_data_ptr[ble_uart_tx_data_size], 19);
+        err_code = _BleUartNotifySendSinglePacket(p_uart, ble_current_data_ptr, 19);
     else
-        err_code = _BleUartNotifySendSinglePacket(p_uart, &ble_data_ptr[ble_uart_tx_data_size], ble_uart_tx_data_size);
+        err_code = _BleUartNotifySendSinglePacket(p_uart, ble_current_data_ptr, ble_uart_tx_data_size);
 
     return err_code;
 }
@@ -487,6 +527,7 @@ uint32_t BleUartDataSendNotify(uint16_t conn_handle, uint8_t command_code, uint8
         ble_uart_tx_data_size = actual_data_size;
         /// Set the pointer to the data
         ble_data_ptr = data;
+        ble_current_data_ptr = data;
         /// Set the command code in the buffer
         ble_uart_tx_buffer[0] = command_code;
         /// Set the buffer allocation flasg
@@ -866,6 +907,7 @@ uint32_t BleUartServiceInit(ble_uart_t * p_uart, const ble_uart_init_t * p_uart_
         return err_code;
     }
 
+    FifoInit(&ble_uart_pending_requests_fifo, ble_uart_pending_requests_fifo_buffer, sizeof(ble_uart_pending_requests_fifo_buffer));
     return NRF_SUCCESS;
 }
 

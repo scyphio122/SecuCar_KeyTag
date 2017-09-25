@@ -21,6 +21,11 @@
 
 typedef enum
 {
+    E_TEST
+}ble_uart_communication_commands_e;
+
+typedef enum
+{
     BLE_UART_EVT_INDICATION_ENABLED,                                         /**< BLE UART value indication enabled event. */
     BLE_UART_EVT_INDICATION_DISABLED,                                        /**< BLE UART value indication disabled event. */
     BLE_UART_EVT_NOTIFICATION_ENABLED,
@@ -88,6 +93,8 @@ uint32_t BleUartDataSendNotify(uint16_t conn_handle, uint8_t command_code, uint8
 void BleUartHandler(ble_uart_t * p_uart, ble_uart_evt_t * p_evt, ble_uart_data_t p_data, uint8_t data_size);
 uint32_t BleUartIsIndicateEnabled(ble_uart_t * p_uart, bool * p_indication_enabled);
 uint32_t BleUartIsNotifyEnabled(ble_uart_t * p_uart, bool * p_indication_enabled);
+uint32_t BleUartAddPendingTask(ble_uart_communication_commands_e command);
+uint32_t BleUartServicePendingTasks();
 
 void BleUartOnBleEvt(ble_uart_t * p_uart, ble_evt_t const * p_ble_evt);
 
