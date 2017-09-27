@@ -25,6 +25,8 @@
 #include <string.h>
 #include "RTC.h"
 #include "ble_uart_service.h"
+#include "internal_flash.h"
+#include "nrf_sdh_soc.h"
 /*
  *
  * Print a greeting message on standard output and exit.
@@ -48,6 +50,18 @@ void POWER_CLOCK_IRQHandler()
 	nrf_gpio_cfg_output(20);
 	nrf_gpio_pin_clear(20);
 }
+
+/**@brief Function for handling SOC events.
+ *
+ * @param[in]   evt_id      SOC stack event id.
+ * @param[in]   p_context   Unused.
+ */
+static void soc_evt_handler(uint32_t evt_id, void * p_context)
+{
+    SD_flash_operation_callback(evt_id);
+}
+
+NRF_SDH_SOC_OBSERVER(m_soc_observer, APP_SOC_OBSERVER_PRIO, soc_evt_handler, NULL);
 
 void SDFaultHandler(uint32_t id, uint32_t pc, uint32_t info)
 {
@@ -73,16 +87,22 @@ main(void)
 	memset(buf, 0xFF, 64);
 #if SOFTDEVICE_ENABLED
 	BleStackInit();
+
+
 	GapParamsInit();
 	GattInit();
 //	ConnParamsInit();
 	ServicesInit();
 	AdvertisingInit();
-	AdvertisingStart();
+//	AdvertisingStart();
 #endif
 	RTCInit(NRF_RTC1);
 	SystickInit();
 
+	uint32_t retcode = 0;
+	retcode = IntFlashStoreWord(0xDEADBEEF, (uint32_t*)0x30000);
+	retcode = IntFlashStoreWord(0x12345678, (uint32_t*)0x30004);
+	retcode = IntFlashErasePage((uint32_t*)0x30000);
 //	UartConfig(UART_BAUDRATE_BAUDRATE_Baud9600, UART_CONFIG_PARITY_Included, UART_CONFIG_HWFC_Disabled);
 //	UartEnable();
 //	UartSendDataSync("Hello World, it's nRF52!", sizeof("Hello World, it's nRF52!"));

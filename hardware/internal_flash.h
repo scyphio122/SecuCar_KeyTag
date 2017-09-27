@@ -20,8 +20,8 @@
 /** ADDRESSES               */
 #define INTERNAL_FLASH_SWAP_PAGE_ADDRESS            (uint32_t*)0x79000
 
-#define INTERNAL_FLASH_PAGE_SIZE_UINT32             (uint16_t)256
-#define INTERNAL_FLASH_PAGE_SIZE                    (uint16_t)1024
+#define INTERNAL_FLASH_PAGE_SIZE                    (uint16_t)0x1000
+#define INTERNAL_FLASH_PAGE_SIZE_UINT32             (uint16_t)INTERNAL_FLASH_PAGE_SIZE/sizeof(uint32_t)
 
 /*< FLASH OPERATIONS MACROS */
 /// These macros are used to define which operation was executed last

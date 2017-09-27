@@ -66,7 +66,8 @@ CFLAGS +=   -DNRF_FSTORAGE_ENABLED
 CFLAGS +=   -DNRF_BLE_CONN_PARAMS_ENABLED
 CFLAGS +=   -DNRF_SD_BLE_API_VERSION=4
 CFLAGS +=   -DNRF_SDH_ENABLED
-CFLAGS +=   -DNRF_SDH_BLE_ENABLED
+CFLAGS +=   -DNRF_SDH_BLE_ENABLED=1
+CFLAGS +=   -DNRF_SDH_SOC_ENABLED=1
 CFLAGS +=   -DNRF_SECTION_ITER_ENABLED
 CFLAGS +=   -DNRF_BLE_GATT_ENABLED
 CFLAGS +=   -DBLE_DB_DISCOVERY_ENABLED
@@ -116,6 +117,7 @@ C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/util/app_error.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/util/app_error_weak.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/softdevice/common/nrf_sdh.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/softdevice/common/nrf_sdh_ble.c
+C_SOURCE_FILES += $(nRF52_SDK)/components/softdevice/common/nrf_sdh_soc.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/experimental_section_vars/nrf_section_iter.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/ble/ble_db_discovery/ble_db_discovery.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/ble/nrf_ble_gatt/nrf_ble_gatt.c 

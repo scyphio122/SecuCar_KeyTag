@@ -254,7 +254,7 @@ uint32_t  IntFlashStoreWord(uint32_t data_to_flash, uint32_t* pointer)
         //  Set the global pointer where we try to store the given uint32_t
         last_flashed_data_pointer = pointer;
         //  Try to write the data at the given address
-        sd_flash_write(pointer, &data_to_flash, 1);
+        uint32_t retval = sd_flash_write(pointer, &data_to_flash, 1);
         //  Wait till the flag is set indicating whethet the flash store was completed and has ended with an error
         _FlashWaitTillOpDone();
         flash_counter++;
@@ -292,7 +292,7 @@ uint32_t IntFlashErasePage(uint32_t* flash_page_beginning_address)
     uint32_t ret_val = 0;
     do
     {
-        ret_val = sd_flash_page_erase((uint32_t)flash_page_beginning_address/1024);
+        ret_val = sd_flash_page_erase((uint32_t)flash_page_beginning_address/INTERNAL_FLASH_PAGE_SIZE);
 
         _FlashWaitTillOpDone();
 

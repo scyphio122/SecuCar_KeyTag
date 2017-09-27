@@ -194,18 +194,6 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
     }
 }
 
-/**@brief Function for handling SOC events.
- *
- * @param[in]   evt_id      SOC stack event id.
- * @param[in]   p_context   Unused.
- */
-static void soc_evt_handler(uint32_t evt_id, void * p_context)
-{
-    SD_flash_operation_callback(evt_id);
-}
-
-
-
 /**@brief Function for the GAP initialization.
  *
  * @details This function sets up all the necessary GAP (Generic Access Profile) parameters of the
@@ -329,7 +317,6 @@ void BleStackInit(void)
 
     // Register a handler for BLE events.
     NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
-    NRF_SDH_SOC_OBSERVER(m_soc_observer, APP_SOC_OBSERVER_PRIO, soc_evt_handler, NULL);
 }
 
 /**@brief Function for initializing services that will be used by the application.
