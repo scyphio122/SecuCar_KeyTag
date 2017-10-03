@@ -193,8 +193,11 @@ void BleCentralInit()
 {
     ble_uart_c_init_t ble_uart_service_central;
     ble_uart_service_central.evt_handler = BleUartCentralHandler;
-    BleUartServiceCentralInit(&m_uart_c, &ble_uart_service_central);
+
     _ServiceDiscoveryInit();
+
+    uint32_t retval = BleUartServiceCentralInit(&m_uart_c, &ble_uart_service_central);
+
 }
 
 /**@brief Function for handling BLE Stack events concerning central applications.

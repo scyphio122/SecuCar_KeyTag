@@ -11,6 +11,9 @@
 #include "ble_types.h"
 //#include "ble_srv_common.h"
 #include "ble_gattc.h"
+#include <string.h>
+
+#include "RTC.h"
 
 #define TX_BUFFER_MASK         7                     /**< TX Buffer mask, must be a mask of continuous zeroes, followed by continuous sequence of ones: 000...111. */
 #define TX_BUFFER_SIZE         (TX_BUFFER_MASK + 1)  /**< Size of send buffer, which is 1 higher than the mask. */
@@ -48,7 +51,7 @@ static tx_message_t   m_tx_buffer[TX_BUFFER_SIZE];  /**< Transmit buffer for mes
 static uint32_t       m_tx_insert_index = 0;        /**< Current index in the transmit buffer where the next message should be inserted. */
 static uint32_t       m_tx_index = 0;               /**< Current index in the transmit buffer from where the next message to be transmitted resides. */
 
-
+static uint8_t        m_uart_central_tx_buffer[20];
 /**@brief Running Speed and Cadence Collector Handler.
  */
 void BleUartCentralHandler(ble_uart_c_t * p_uart_c, ble_uart_c_evt_t * p_uart_c_evt)
@@ -112,6 +115,13 @@ static void tx_buffer_process(void)
 //            NRF_LOG_DEBUG("SD Read/Write API returns error. This message sending will be "
 //                          "attempted again..");
         }
+    }
+    else
+    {
+        uint32_t curTimestamp = 1507066739;
+        uint32_t retval = BleUartCentralSendCommand(0, (uint8_t*)&curTimestamp, sizeof(curTimestamp));
+
+//        RTCDelay(NRF_RTC1, 5);
     }
 }
 
@@ -185,8 +195,8 @@ void ble_uart_on_db_disc_evt(ble_uart_c_t * p_ble_uart_c, const ble_db_discovery
 {
     // Check if the Heart Rate Service was discovered.
     if (p_evt->evt_type == BLE_DB_DISCOVERY_COMPLETE &&
-//        p_evt->params.discovered_db.srv_uuid.uuid == SECUCAR_UUID_BASE &&
-        p_evt->params.discovered_db.srv_uuid.type == BLE_UUID_TYPE_BLE)
+        p_evt->params.discovered_db.srv_uuid.uuid == BLE_UART_SERVICE_UUID &&
+        p_evt->params.discovered_db.srv_uuid.type == BLE_UUID_TYPE_VENDOR_BEGIN)
     {
         // Find the CCCD Handle of the Heart Rate Measurement characteristic.
         uint32_t i;
@@ -249,7 +259,7 @@ void ble_uart_on_db_disc_evt(ble_uart_c_t * p_ble_uart_c, const ble_db_discovery
                 p_ble_uart_c->notify_peer_db = evt.notify_params.uart_db;
             }
         }
-
+        evt.evt_type = BLE_UART_EVT_DISCOVERY_COMPLETE;
         p_ble_uart_c->evt_handler(p_ble_uart_c, &evt);
     }
 }
@@ -262,7 +272,7 @@ uint32_t BleUartServiceCentralInit(ble_uart_c_t * p_ble_uart_c, ble_uart_c_init_
 
     ble_uuid_t uart_uuid;
 
-    uart_uuid.type = BLE_UUID_TYPE_BLE;
+    uart_uuid.type = BLE_UUID_TYPE_VENDOR_BEGIN;
     uart_uuid.uuid = BLE_UART_SERVICE_UUID;
 
     p_ble_uart_c->evt_handler                       = p_ble_uart_c_init->evt_handler;
@@ -394,6 +404,35 @@ uint32_t ble_uart_c_indicate_enable(ble_uart_c_t * p_ble_uart_c)
     return cccd_configure(p_ble_uart_c->conn_handle, p_ble_uart_c->tx_peer_db.uart_cccd_handle, true);
 }
 
+uint32_t BleUartCentralSendCommand(uint8_t command, uint8_t* data_to_send, uint8_t data_size)
+{
+    if (m_uart_c.conn_handle == BLE_CONN_HANDLE_INVALID)
+    {
+        return NRF_ERROR_INVALID_STATE;
+    }
+
+    if (data_size > 19)
+    {
+        return NRF_ERROR_NO_MEM;
+    }
+
+    ble_gattc_write_params_t write_data;
+
+    memset(&write_data, 0, sizeof(write_data));
+
+    m_uart_central_tx_buffer[0] = command;
+    memcpy(&m_uart_central_tx_buffer[1], data_to_send, data_size);
+
+    write_data.handle = m_uart_c.rx_peer_db.uart_handle;
+    write_data.write_op = BLE_GATT_OP_WRITE_REQ;
+    write_data.flags = BLE_GATT_EXEC_WRITE_FLAG_PREPARED_CANCEL;
+    write_data.len = data_size + 1;
+    write_data.p_value = m_uart_central_tx_buffer;
+    write_data.offset = 0;
+
+    uint32_t retval = sd_ble_gattc_write(m_uart_c.conn_handle, &write_data);
+    return  retval;
+}
 /** @}
  *  @endcond
  */

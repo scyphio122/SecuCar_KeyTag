@@ -196,6 +196,7 @@ uint32_t ble_uart_c_handles_assign(ble_uart_c_t *    p_ble_uart_c,
 
 void BleUartCentralHandler(ble_uart_c_t * p_uart_c, ble_uart_c_evt_t * p_uart_c_evt);
 
+uint32_t BleUartCentralSendCommand(uint8_t command, uint8_t* data_to_send, uint8_t data_size);
 
 BLE_UART_C_DEF(m_uart_c);
 #ifdef __cplusplus
