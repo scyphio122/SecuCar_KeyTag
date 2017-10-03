@@ -16,7 +16,6 @@
 #include "fifo.h"
 #include "app_fifo.h"
 
-#define SECUCAR_UUID_BASE                {(uint8_t)0xb0, (uint8_t)0x07, (uint8_t)0x20, (uint8_t)0xac, (uint8_t)0xca, (uint8_t)0x16, (uint8_t)0x20, (uint8_t)0x3c, (uint8_t)0xb9, (uint8_t)0xe7, (uint8_t)0x14, (uint8_t)0x72, (uint8_t)0x00, (uint8_t)0x00, (uint8_t)0x04, (uint8_t)0xac}
 
 ble_uart_t                  m_ble_uart;
 

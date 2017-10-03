@@ -12,7 +12,7 @@
 #include "ble.h"
 #include <stdbool.h>
 
-#define KEY_TAG_NAME                                "SCKeyTag"
+#define KEY_TAG_NAME                                "GWatch"
 
 #define BLE_CENTRAL_SCAN_INTERVAL                   0x00A0                              /**< Determines scan interval in units of 0.625 millisecond. */
 #define BLE_CENTRAL_SCAN_WINDOW                     0x0050                              /**< Determines scan window in units of 0.625 millisecond. */
@@ -67,7 +67,9 @@ static const char m_target_periph_name[] = KEY_TAG_NAME;
 conn_peer_t        m_connected_peers[NRF_BLE_LINK_COUNT];
 
 bool IsAlreadyConnected(ble_gap_addr_t const * p_connected_adr);
+void BleCentralInit();
 void BleCentralScanStart(void);
+void BleCentralScanStop(void);
 
 void on_ble_central_evt(ble_evt_t const * p_ble_evt);
 void on_adv_report(const ble_evt_t * const p_ble_evt);

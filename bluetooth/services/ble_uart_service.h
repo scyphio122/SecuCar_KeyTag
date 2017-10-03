@@ -14,6 +14,8 @@
 #include <ble_gatts.h>
 #include <ble_srv_common.h>
 
+#define SECUCAR_UUID_BASE           {(uint8_t)0xb0, (uint8_t)0x07, (uint8_t)0x20, (uint8_t)0xac, (uint8_t)0xca, (uint8_t)0x16, (uint8_t)0x20, (uint8_t)0x3c, (uint8_t)0xb9, (uint8_t)0xe7, (uint8_t)0x14, (uint8_t)0x72, (uint8_t)0x00, (uint8_t)0x00, (uint8_t)0x04, (uint8_t)0xac}
+
 #define BLE_UART_SERVICE_UUID       (0x0001)
 #define RX_CHAR_UUID                (0x0002)
 #define TX_CHAR_UUID                (0x0003)
@@ -35,10 +37,33 @@ typedef enum
     BLE_UART_EVT_RX_DATA_RECEIVED
 } ble_uart_evt_type_t;
 
+/**@brief Structure containing the handles related to the Heart Rate Service found on the peer. */
+typedef struct
+{
+    uint16_t cccd_handle;  /**< Handle of the CCCD of the Heart Rate Measurement characteristic. */
+    uint16_t handle;       /**< Handle of the Heart Rate Measurement characteristic as provided by the SoftDevice. */
+} ble_uart_db_t;
+
 /**@brief BLE UART Service event. */
 typedef struct
 {
-    ble_uart_evt_type_t evt_type;                                            /**< Type of event. */
+    ble_uart_evt_type_t  evt_type;         /**< Type of event. */
+    uint16_t             conn_handle;      /**< Connection handle on which the Heart Rate service was discovered on the peer device..*/
+    union
+    {
+        ble_uart_db_t  peer_db;            /**< TX related handles found on the peer device.. This will be filled if the evt_type is @ref BLE_HRS_C_EVT_DISCOVERY_COMPLETE.*/
+    } tx_char_params;
+
+    union
+    {
+        ble_uart_db_t  peer_db;            /**< RX related handles found on the peer device.. This will be filled if the evt_type is @ref BLE_HRS_C_EVT_DISCOVERY_COMPLETE.*/
+    } rx_char_params;
+
+    union
+    {
+        ble_uart_db_t  peer_db;            /**< Events related handles found on the peer device.. This will be filled if the evt_type is @ref BLE_HRS_C_EVT_DISCOVERY_COMPLETE.*/
+    } events_char_params;
+
 } ble_uart_evt_t;
 
 typedef uint8_t* ble_uart_data_t;

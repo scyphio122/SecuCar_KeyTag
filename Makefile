@@ -39,63 +39,6 @@ INC_PATHS += -I$(nRF52_SDK)/components/softdevice/common/
 INC_PATHS += -I$(nRF52_SDK)/config/
 INC_PATHS += $(SDK_INCLUDE_PATHS) 
 
-#----------------------- COMPILING FLAGS ------------------------------
-
-CFLAGS +=	$(OPTIMIZATION)
-CFLAGS += 	-mcpu=cortex-m4
-CFLAGS +=   -mabi=aapcs
-CFLAGS +=   -mthumb
-CFLAGS += 	-mfloat-abi=soft
-CFLAGS += 	-mfpu=fpv4-sp-d16
-CFLAGS +=   -DARM_MATH_CM4
-CFLAGS +=	--std=gnu99
-CFLAGS += 	-Werror
-CFLAGS +=	-fmessage-length=0
-CFLAGS +=	-ffunction-sections
-CFLAGS +=	-fdata-sections
-CFLAGS += 	-fno-strict-aliasing
-CFLAGS +=	-g3
-CFLAGS += 	-fno-builtin --short-enums
-#CFLAGS += 	-fomit-frame-pointer
-CFLAGS +=	-DNRF52832_XXAA
-CFLAGS += 	-DNRF52832
-CFLAGS +=   -DNRF52
-CFLAGS +=   -DBLE_STACK_SUPPORT_REQD
-CFLAGS +=   -DDEBUG
-CFLAGS +=   -DNRF_FSTORAGE_ENABLED
-CFLAGS +=   -DNRF_BLE_CONN_PARAMS_ENABLED
-CFLAGS +=   -DNRF_SD_BLE_API_VERSION=4
-CFLAGS +=   -DNRF_SDH_ENABLED
-CFLAGS +=   -DNRF_SDH_BLE_ENABLED=1
-CFLAGS +=   -DNRF_SDH_SOC_ENABLED=1
-CFLAGS +=   -DNRF_SECTION_ITER_ENABLED
-CFLAGS +=   -DNRF_BLE_GATT_ENABLED
-CFLAGS +=   -DBLE_DB_DISCOVERY_ENABLED
-CFLAGS +=   -DBLE_ADVERTISING_ENABLED
-CFLAGS +=   -DAPP_FIFO_ENABLED
-CFLAGS +=   -DS132
-CFLAGS +=   -DNRF_SDH_BLE_PERIPHERAL_LINK_COUNT=1
-CFLAGS +=   -DNRF_SDH_BLE_CENTRAL_LINK_COUNT=1
-
-ASMFLAGS += -x assembler-with-cpp
-ASMFLAGS += -DARM_MATH_CM4
-ASMFLAGS += -mfloat-abi=hard
-ASMFLAGS += -mfpu=fpv4-sp-d16
-ASMFLAGS += -D__STARTUP_CLEAR_BSS	# Needed to zero BSS section in RAM by the startup code
-#------------------------ LINKER FLAGS --------------------------------
-
-LDFLAGS += -mcpu=cortex-m4
-LDFLAGS += -mabi=aapcs
-LDFLAGS += -mfloat-abi=soft
-LDFLAGS += -mfpu=fpv4-sp-d16
-LDFLAGS += -Xlinker -Map=$(OUTPUT_BINARY_FOLDER)/$(OUTPUT_BINARY_NAME).map
-LDFLAGS += -Wl,--gc-sections
-LDFLAGS += -T"$(nRF52_SDK)/$(LINKER_SCRIPT)"
-LDFLAGS += -L"$(nRF52_SDK)"
-LDFLAGS += -L/home/konrad/Tools/gcc-arm-none-eabi-6-2017-q2-update/arm-none-eabi/lib/thumb/v7e-m
-LDFLAGS += -L/home/konrad/Tools/GNU_ARM_GCC/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/lib/armv7e-m 
-LDFLAGS += --specs=nano.specs -lc -lnosys
-LDFLAGS += -lgcc
 #----------------------- PROJECT SOURCES ------------------------------
 
 ASM_SOURCE_FILES += gcc_startup_nrf52.s
@@ -129,6 +72,63 @@ C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/fstorage/nrf_fstorage.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/util/sdk_mapped_flags.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/fifo/app_fifo.c
 
+#----------------------- COMPILING FLAGS ------------------------------
+
+CFLAGS +=	$(OPTIMIZATION)
+CFLAGS += 	-mcpu=cortex-m4
+CFLAGS +=   -mabi=aapcs
+CFLAGS +=   -mthumb
+CFLAGS += 	-mfloat-abi=soft
+CFLAGS += 	-mfpu=fpv4-sp-d16
+CFLAGS +=   -DARM_MATH_CM4
+CFLAGS +=	--std=gnu99
+CFLAGS += 	-Werror
+CFLAGS +=	-fmessage-length=0
+CFLAGS +=	-ffunction-sections
+CFLAGS +=	-fdata-sections
+CFLAGS += 	-fno-strict-aliasing
+CFLAGS +=	-g3
+CFLAGS += 	-fno-builtin --short-enums
+#CFLAGS += 	-fomit-frame-pointer
+CFLAGS +=	-DNRF52832_XXAA
+CFLAGS += 	-DNRF52832
+CFLAGS +=   -DNRF52
+CFLAGS +=   -DBLE_STACK_SUPPORT_REQD
+CFLAGS +=   -DDEBUG
+CFLAGS +=   -DNRF_FSTORAGE_ENABLED
+CFLAGS +=   -DNRF_BLE_CONN_PARAMS_ENABLED
+CFLAGS +=   -DNRF_SD_BLE_API_VERSION=4
+CFLAGS +=   -DNRF_SDH_ENABLED=1
+CFLAGS +=   -DNRF_SDH_BLE_ENABLED=1
+CFLAGS +=   -DNRF_SDH_SOC_ENABLED=1
+CFLAGS +=   -DNRF_SECTION_ITER_ENABLED=1
+CFLAGS +=   -DNRF_BLE_GATT_ENABLED=1
+CFLAGS +=   -DBLE_DB_DISCOVERY_ENABLED=1
+CFLAGS +=   -DBLE_ADVERTISING_ENABLED=1
+CFLAGS +=   -DAPP_FIFO_ENABLED=1
+CFLAGS +=   -DS132
+CFLAGS +=   -DNRF_SDH_BLE_PERIPHERAL_LINK_COUNT=1
+CFLAGS +=   -DNRF_SDH_BLE_CENTRAL_LINK_COUNT=1
+
+ASMFLAGS += -x assembler-with-cpp
+ASMFLAGS += -DARM_MATH_CM4
+ASMFLAGS += -mfloat-abi=hard
+ASMFLAGS += -mfpu=fpv4-sp-d16
+ASMFLAGS += -D__STARTUP_CLEAR_BSS	# Needed to zero BSS section in RAM by the startup code
+#------------------------ LINKER FLAGS --------------------------------
+
+LDFLAGS += -mcpu=cortex-m4
+LDFLAGS += -mabi=aapcs
+LDFLAGS += -mfloat-abi=soft
+LDFLAGS += -mfpu=fpv4-sp-d16
+LDFLAGS += -Xlinker -Map=$(OUTPUT_BINARY_FOLDER)/$(OUTPUT_BINARY_NAME).map
+LDFLAGS += -Wl,--gc-sections
+LDFLAGS += -T"$(nRF52_SDK)/$(LINKER_SCRIPT)"
+LDFLAGS += -L"$(nRF52_SDK)"
+LDFLAGS += -L/home/konrad/Tools/gcc-arm-none-eabi-6-2017-q2-update/arm-none-eabi/lib/thumb/v7e-m
+LDFLAGS += -L/home/konrad/Tools/GNU_ARM_GCC/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/lib/armv7e-m 
+LDFLAGS += --specs=nano.specs -lc -lnosys
+LDFLAGS += -lgcc
 
 #C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/experimental_log/src/nrf_log_frontend.c
                  

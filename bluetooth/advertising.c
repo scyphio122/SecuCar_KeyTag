@@ -51,6 +51,7 @@ static ble_uuid_t m_adv_uuids[] = {BLE_UUID_UART,         BLE_UUID_TYPE_BLE};
 void on_ble_peripheral_evt(ble_evt_t const * p_ble_evt)
 {
     ret_code_t err_code;
+
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:

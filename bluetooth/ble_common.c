@@ -9,7 +9,7 @@
 #include <stdint-gcc.h>
 #include "app_error.h"
 #include "ble.h"
-#include "ble_db_discovery.h"
+
 #include "ble_hci.h"
 #include "ble_conn_params.h"
 #include "ble_conn_state.h"
@@ -25,10 +25,10 @@
 
 
 NRF_BLE_GATT_DEF(m_gatt);                                       /**< GATT module instance. */
-BLE_DB_DISCOVERY_DEF(m_db_disc);                                /**< DB discovery module instance. */
 
  uint16_t           m_conn_handle_peripheral = BLE_CONN_HANDLE_INVALID;    /**< Connection handle for peripheral */
  uint16_t           m_conn_handle_central = BLE_CONN_HANDLE_INVALID;    /**< Connection handle for central */
+
 /**@brief Function to handle asserts in the SoftDevice.
  *
  * @details This function will be called in case of an assert in the SoftDevice.
