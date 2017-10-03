@@ -180,69 +180,7 @@ bool IsAlreadyConnected(ble_gap_addr_t const * p_connected_adr)
 
 static void _ServiceDiscoveryHandler(ble_db_discovery_evt_t* p_evt)
 {
-    // Check if the Heart Rate Service was discovered.
-    if (p_evt->evt_type == BLE_DB_DISCOVERY_COMPLETE &&
-//        p_evt->params.discovered_db.srv_uuid.uuid == SECUCAR_UUID_BASE &&
-        p_evt->params.discovered_db.srv_uuid.type == BLE_UUID_TYPE_BLE)
-    {
-        // Find the CCCD Handle of the Heart Rate Measurement characteristic.
-        uint32_t i;
-
-        ble_uart_evt_t evt;
-
-        evt.evt_type    = BLE_DB_DISCOVERY_COMPLETE;
-        evt.conn_handle = p_evt->conn_handle;
-
-        for (i = 0; i < p_evt->params.discovered_db.char_count; i++)
-        {
-            if (p_evt->params.discovered_db.charateristics[i].characteristic.uuid.uuid ==
-                    TX_CHAR_UUID)
-            {
-                // Found Uart TX (indicate) characteristic. Store CCCD handle and break.
-                evt.tx_char_params.peer_db.cccd_handle =
-                    p_evt->params.discovered_db.charateristics[i].cccd_handle;
-                evt.tx_char_params.peer_db.handle =
-                    p_evt->params.discovered_db.charateristics[i].characteristic.handle_value;
-            }
-
-            if (p_evt->params.discovered_db.charateristics[i].characteristic.uuid.uuid ==
-                    RX_CHAR_UUID)
-            {
-                // Found Uart RX (write) characteristic. Store CCCD handle and break.
-                evt.rx_char_params.peer_db.cccd_handle =
-                    p_evt->params.discovered_db.charateristics[i].cccd_handle;
-                evt.rx_char_params.peer_db.handle =
-                    p_evt->params.discovered_db.charateristics[i].characteristic.handle_value;
-            }
-
-            if (p_evt->params.discovered_db.charateristics[i].characteristic.uuid.uuid ==
-                    DEV_EVENTS_UUID)
-            {
-                // Found Uart Events (notify) characteristic. Store CCCD handle and break.
-                evt.events_char_params.peer_db.cccd_handle =
-                    p_evt->params.discovered_db.charateristics[i].cccd_handle;
-                evt.events_char_params.peer_db.handle =
-                    p_evt->params.discovered_db.charateristics[i].characteristic.handle_value;
-            }
-        }
-
-
-        ble_uart_c_t* p_ble_uart_c = &m_uart_c;
-        //If the instance has been assigned prior to db_discovery, assign the db_handles
-        if (p_ble_uart_c->conn_handle != BLE_CONN_HANDLE_INVALID)
-        {
-            if ((p_ble_uart_c->peer_db.uart_cccd_handle == BLE_GATT_HANDLE_INVALID)&&
-                (p_ble_uart_c->peer_db.uart_handle == BLE_GATT_HANDLE_INVALID))
-            {
-                p_ble_uart_c->peer_db = evt.tx_char_params.peer_db;
-            }
-        }
-
-
-        p_ble_uart_c->evt_handler(p_ble_uart_c, &evt);
-    }
-
-
+    ble_uart_on_db_disc_evt(&m_uart_c, p_evt);
 }
 
 static void _ServiceDiscoveryInit()

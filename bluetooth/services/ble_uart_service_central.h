@@ -37,13 +37,16 @@
 extern "C" {
 #endif
 
+
+#define BLE_UART_C_BLE_OBSERVER_PRIO 2
+
 /**@brief   Macro for defining a ble_rscs_c instance.
  *
  * @param   _name   Name of the instance.
  * @hideinitializer
  */
 #define BLE_UART_C_DEF(_name)                                                                       \
-static ble_uart_c_t _name;                                                                          \
+ble_uart_c_t _name;                                                                                 \
 NRF_SDH_BLE_OBSERVER(_name ## _obs,                                                                 \
                      BLE_UART_C_BLE_OBSERVER_PRIO,                                                  \
                      ble_uart_c_on_ble_evt, &_name)
@@ -84,7 +87,19 @@ typedef struct
     {
         ble_uart_c_db_t         uart_db;           /**< Running Speed and Cadence Service related handles found on the peer device. This will be filled if the evt_type is @ref BLE_RSCS_C_EVT_DISCOVERY_COMPLETE.*/
         ble_uart_packet_t       uart_packet;       /**< Running Speed and Cadence measurement received. This will be filled if the evt_type is @ref BLE_RSCS_C_EVT_RSC_NOTIFICATION. */
-    } params;
+    } rx_params;
+
+    union
+    {
+        ble_uart_c_db_t         uart_db;           /**< Running Speed and Cadence Service related handles found on the peer device. This will be filled if the evt_type is @ref BLE_RSCS_C_EVT_DISCOVERY_COMPLETE.*/
+        ble_uart_packet_t       uart_packet;       /**< Running Speed and Cadence measurement received. This will be filled if the evt_type is @ref BLE_RSCS_C_EVT_RSC_NOTIFICATION. */
+    } tx_params;
+
+    union
+    {
+        ble_uart_c_db_t         uart_db;           /**< Running Speed and Cadence Service related handles found on the peer device. This will be filled if the evt_type is @ref BLE_RSCS_C_EVT_DISCOVERY_COMPLETE.*/
+        ble_uart_packet_t       uart_packet;       /**< Running Speed and Cadence measurement received. This will be filled if the evt_type is @ref BLE_RSCS_C_EVT_RSC_NOTIFICATION. */
+    } notify_params;
 } ble_uart_c_evt_t;
 
 // Forward declaration of the ble_rscs_c_t type.
@@ -101,7 +116,9 @@ typedef void (* ble_uart_c_evt_handler_t) (ble_uart_c_t * p_ble_uart_c, ble_uart
 struct ble_uart_c_s
 {
     uint16_t                 conn_handle;      /**< Connection handle as provided by the SoftDevice. */
-    ble_uart_c_db_t          peer_db;          /**< Handles related to RSCS on the peer*/
+    ble_uart_c_db_t          rx_peer_db;          /**< Handles related to RSCS on the peer*/
+    ble_uart_c_db_t          tx_peer_db;
+    ble_uart_c_db_t          notify_peer_db;
     ble_uart_c_evt_handler_t evt_handler;      /**< Application event handler to be called when there is an event related to the Running Speed and Cadence service. */
 };
 
@@ -111,7 +128,6 @@ typedef struct
     ble_uart_c_evt_handler_t evt_handler;  /**< Event handler to be called by the Running Speed and Cadence Client module whenever there is an event related to the Running Speed and Cadence Service. */
 } ble_uart_c_init_t;
 
-extern ble_uart_c_t m_uart_c;
 
 /**@brief      Function for initializing the Running Speed and Cadence Service Client module.
  *
@@ -172,12 +188,16 @@ void ble_uart_on_db_disc_evt(ble_uart_c_t * p_ble_uart_c, ble_db_discovery_evt_t
  * @param[in]   p_peer_handles  Attribute handles on the RSCS server that you want this RSCS client
  *                              to interact with.
  */
-uint32_t ble_uart_c_handles_assign(ble_uart_c_t    * p_ble_uart_c,
+uint32_t ble_uart_c_handles_assign(ble_uart_c_t *    p_ble_uart_c,
                                    uint16_t          conn_handle,
-                                   ble_uart_c_db_t * p_peer_handles);
+                                   ble_uart_c_db_t * p_rx_peer_handles,
+                                   ble_uart_c_db_t * p_tx_peer_handles,
+                                   ble_uart_c_db_t * p_notify_peer_handles);
 
 void BleUartCentralHandler(ble_uart_c_t * p_uart_c, ble_uart_c_evt_t * p_uart_c_evt);
 
+
+BLE_UART_C_DEF(m_uart_c);
 #ifdef __cplusplus
 }
 #endif

@@ -55,6 +55,7 @@ C_SOURCE_FILES += bluetooth/ble_common.c
 C_SOURCE_FILES += bluetooth/advertising.c
 C_SOURCE_FILES += bluetooth/ble_central.c
 C_SOURCE_FILES += bluetooth/services/ble_uart_service.c
+C_SOURCE_FILES += bluetooth/services/ble_uart_service_central.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/ble/common/ble_advdata.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/util/app_error.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/util/app_error_weak.c

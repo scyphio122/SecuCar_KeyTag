@@ -44,7 +44,6 @@ typedef struct
     } req;
 } tx_message_t;
 
-BLE_UART_C_DEF(m_uart_c);
 static tx_message_t   m_tx_buffer[TX_BUFFER_SIZE];  /**< Transmit buffer for messages to be transmitted to the central. */
 static uint32_t       m_tx_insert_index = 0;        /**< Current index in the transmit buffer where the next message should be inserted. */
 static uint32_t       m_tx_index = 0;               /**< Current index in the transmit buffer from where the next message to be transmitted resides. */
@@ -62,7 +61,9 @@ void BleUartCentralHandler(ble_uart_c_t * p_uart_c, ble_uart_c_evt_t * p_uart_c_
             // Initiate bonding.
             err_code = ble_uart_c_handles_assign(&m_uart_c,
                                                   p_uart_c_evt->conn_handle,
-                                                 &p_uart_c_evt->params.uart_db);
+                                                 &p_uart_c_evt->rx_params.uart_db,
+                                                 &p_uart_c_evt->tx_params.uart_db,
+                                                 &p_uart_c_evt->notify_params.uart_db);
             APP_ERROR_CHECK(err_code);
 
             // Running Speed and Cadence service discovered. Enable Running Speed and Cadence notifications.
@@ -153,7 +154,7 @@ static void on_hvx(ble_uart_c_t * p_ble_uart_c, const ble_evt_t * p_ble_evt)
     }
 
     // Check if this is a Running Speed and Cadence notification.
-    if (p_ble_evt->evt.gattc_evt.params.hvx.handle == p_ble_uart_c->peer_db.uart_handle)
+    if (p_ble_evt->evt.gattc_evt.params.hvx.handle == p_ble_uart_c->tx_peer_db.uart_handle)
     {
         uint32_t         index = 0;
         ble_uart_c_evt_t ble_uart_c_evt;
@@ -184,40 +185,70 @@ void ble_uart_on_db_disc_evt(ble_uart_c_t * p_ble_uart_c, const ble_db_discovery
 {
     // Check if the Heart Rate Service was discovered.
     if (p_evt->evt_type == BLE_DB_DISCOVERY_COMPLETE &&
-        p_evt->params.discovered_db.srv_uuid.uuid == BLE_UART_SERVICE_UUID &&
+//        p_evt->params.discovered_db.srv_uuid.uuid == SECUCAR_UUID_BASE &&
         p_evt->params.discovered_db.srv_uuid.type == BLE_UUID_TYPE_BLE)
     {
+        // Find the CCCD Handle of the Heart Rate Measurement characteristic.
+        uint32_t i;
+
         ble_uart_c_evt_t evt;
+
+        evt.evt_type    = BLE_DB_DISCOVERY_COMPLETE;
         evt.conn_handle = p_evt->conn_handle;
 
-        // Find the CCCD Handle of the BLE UART characteristic.
-        for (uint32_t i = 0; i < p_evt->params.discovered_db.char_count; i++)
+        for (i = 0; i < p_evt->params.discovered_db.char_count; i++)
         {
             if (p_evt->params.discovered_db.charateristics[i].characteristic.uuid.uuid ==
                     TX_CHAR_UUID)
             {
-                // Found Running Speed and Cadence characteristic. Store CCCD handle and break.
-                evt.params.uart_db.uart_cccd_handle =
+                // Found Uart TX (indicate) characteristic. Store CCCD handle and break.
+                evt.tx_params.uart_db.uart_cccd_handle =
                     p_evt->params.discovered_db.charateristics[i].cccd_handle;
-                evt.params.uart_db.uart_handle      =
+                evt.tx_params.uart_db.uart_handle =
                     p_evt->params.discovered_db.charateristics[i].characteristic.handle_value;
-                break;
+            }
+
+            if (p_evt->params.discovered_db.charateristics[i].characteristic.uuid.uuid ==
+                    RX_CHAR_UUID)
+            {
+                // Found Uart RX (write) characteristic. Store CCCD handle and break.
+                evt.rx_params.uart_db.uart_cccd_handle =
+                    p_evt->params.discovered_db.charateristics[i].cccd_handle;
+                evt.rx_params.uart_db.uart_handle =
+                    p_evt->params.discovered_db.charateristics[i].characteristic.handle_value;
+            }
+
+            if (p_evt->params.discovered_db.charateristics[i].characteristic.uuid.uuid ==
+                    DEV_EVENTS_UUID)
+            {
+                // Found Uart Events (notify) characteristic. Store CCCD handle and break.
+                evt.notify_params.uart_db.uart_cccd_handle =
+                    p_evt->params.discovered_db.charateristics[i].cccd_handle;
+                evt.notify_params.uart_db.uart_handle =
+                    p_evt->params.discovered_db.charateristics[i].characteristic.handle_value;
             }
         }
-
-        NRF_LOG_DEBUG("Running Speed and Cadence Service discovered at peer.");
 
         //If the instance has been assigned prior to db_discovery, assign the db_handles
         if (p_ble_uart_c->conn_handle != BLE_CONN_HANDLE_INVALID)
         {
-            if ((p_ble_uart_c->peer_db.uart_cccd_handle == BLE_GATT_HANDLE_INVALID)&&
-                (p_ble_uart_c->peer_db.uart_handle == BLE_GATT_HANDLE_INVALID))
+            if ((p_ble_uart_c->rx_peer_db.uart_cccd_handle == BLE_GATT_HANDLE_INVALID)&&
+                (p_ble_uart_c->rx_peer_db.uart_handle == BLE_GATT_HANDLE_INVALID))
             {
-                p_ble_uart_c->peer_db = evt.params.uart_db;
+                p_ble_uart_c->rx_peer_db = evt.rx_params.uart_db;
+            }
+            if ((p_ble_uart_c->tx_peer_db.uart_cccd_handle == BLE_GATT_HANDLE_INVALID)&&
+                (p_ble_uart_c->tx_peer_db.uart_handle == BLE_GATT_HANDLE_INVALID))
+            {
+                p_ble_uart_c->tx_peer_db = evt.tx_params.uart_db;
+            }
+
+            if ((p_ble_uart_c->notify_peer_db.uart_cccd_handle == BLE_GATT_HANDLE_INVALID)&&
+                (p_ble_uart_c->notify_peer_db.uart_handle == BLE_GATT_HANDLE_INVALID))
+            {
+                p_ble_uart_c->notify_peer_db = evt.notify_params.uart_db;
             }
         }
-
-        evt.evt_type = BLE_UART_EVT_DISCOVERY_COMPLETE;
 
         p_ble_uart_c->evt_handler(p_ble_uart_c, &evt);
     }
@@ -226,34 +257,49 @@ void ble_uart_on_db_disc_evt(ble_uart_c_t * p_ble_uart_c, const ble_db_discovery
 
 uint32_t BleUartServiceCentralInit(ble_uart_c_t * p_ble_uart_c, ble_uart_c_init_t * p_ble_uart_c_init)
 {
-    VERIFY_PARAM_NOT_NULL(p_ble_uart_c);
-    VERIFY_PARAM_NOT_NULL(p_ble_uart_c_init);
+//    VERIFY_PARAM_NOT_NULL(p_ble_uart_c);
+//    VERIFY_PARAM_NOT_NULL(p_ble_uart_c_init);
 
     ble_uuid_t uart_uuid;
 
     uart_uuid.type = BLE_UUID_TYPE_BLE;
     uart_uuid.uuid = BLE_UART_SERVICE_UUID;
 
-    p_ble_uart_c->evt_handler              = p_ble_uart_c_init->evt_handler;
-    p_ble_uart_c->conn_handle              = BLE_CONN_HANDLE_INVALID;
-    p_ble_uart_c->peer_db.uart_cccd_handle = BLE_GATT_HANDLE_INVALID;
-    p_ble_uart_c->peer_db.uart_handle      = BLE_GATT_HANDLE_INVALID;
+    p_ble_uart_c->evt_handler                       = p_ble_uart_c_init->evt_handler;
+    p_ble_uart_c->conn_handle                       = BLE_CONN_HANDLE_INVALID;
+    p_ble_uart_c->rx_peer_db.uart_cccd_handle       = BLE_GATT_HANDLE_INVALID;
+    p_ble_uart_c->rx_peer_db.uart_handle            = BLE_GATT_HANDLE_INVALID;
+    p_ble_uart_c->tx_peer_db.uart_cccd_handle       = BLE_GATT_HANDLE_INVALID;
+    p_ble_uart_c->tx_peer_db.uart_handle            = BLE_GATT_HANDLE_INVALID;
+    p_ble_uart_c->notify_peer_db.uart_cccd_handle   = BLE_GATT_HANDLE_INVALID;
+    p_ble_uart_c->notify_peer_db.uart_handle        = BLE_GATT_HANDLE_INVALID;
 
     return ble_db_discovery_evt_register(&uart_uuid);
 }
 
 
 uint32_t ble_uart_c_handles_assign(ble_uart_c_t *    p_ble_uart_c,
-                                   uint16_t         conn_handle,
-                                   ble_uart_c_db_t * p_peer_handles)
+                                   uint16_t          conn_handle,
+                                   ble_uart_c_db_t * p_rx_peer_handles,
+                                   ble_uart_c_db_t * p_tx_peer_handles,
+                                   ble_uart_c_db_t * p_notify_peer_handles)
 {
-    VERIFY_PARAM_NOT_NULL(p_ble_uart_c);
+//    VERIFY_PARAM_NOT_NULL(p_ble_uart_c);
     p_ble_uart_c->conn_handle = conn_handle;
-    if (p_peer_handles != NULL)
+    if (p_rx_peer_handles != NULL)
     {
-        p_ble_uart_c->peer_db = *p_peer_handles;
+        p_ble_uart_c->rx_peer_db = *p_rx_peer_handles;
     }
 
+    if (p_tx_peer_handles != NULL)
+    {
+        p_ble_uart_c->tx_peer_db = *p_tx_peer_handles;
+    }
+
+    if (p_notify_peer_handles != NULL)
+    {
+        p_ble_uart_c->notify_peer_db = *p_notify_peer_handles;
+    }
     return NRF_SUCCESS;
 }
 
@@ -271,9 +317,13 @@ static void on_disconnected(ble_uart_c_t * p_ble_uart_c, const ble_evt_t * p_ble
 {
     if (p_ble_uart_c->conn_handle == p_ble_evt->evt.gap_evt.conn_handle)
     {
-        p_ble_uart_c->conn_handle             = BLE_CONN_HANDLE_INVALID;
-        p_ble_uart_c->peer_db.uart_cccd_handle = BLE_GATT_HANDLE_INVALID;
-        p_ble_uart_c->peer_db.uart_handle      = BLE_GATT_HANDLE_INVALID;
+        p_ble_uart_c->conn_handle                       = BLE_CONN_HANDLE_INVALID;
+        p_ble_uart_c->rx_peer_db.uart_cccd_handle       = BLE_GATT_HANDLE_INVALID;
+        p_ble_uart_c->rx_peer_db.uart_handle            = BLE_GATT_HANDLE_INVALID;
+        p_ble_uart_c->tx_peer_db.uart_cccd_handle       = BLE_GATT_HANDLE_INVALID;
+        p_ble_uart_c->tx_peer_db.uart_handle            = BLE_GATT_HANDLE_INVALID;
+        p_ble_uart_c->notify_peer_db.uart_cccd_handle   = BLE_GATT_HANDLE_INVALID;
+        p_ble_uart_c->notify_peer_db.uart_handle        = BLE_GATT_HANDLE_INVALID;
     }
 }
 
@@ -311,9 +361,6 @@ void ble_uart_c_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
  */
 static uint32_t cccd_configure(uint16_t conn_handle, uint16_t handle_cccd, bool enable)
 {
-    NRF_LOG_DEBUG("Configuring CCCD. CCCD Handle = %d, Connection Handle = %d",
-                  handle_cccd, conn_handle);
-
     tx_message_t * p_msg;
     uint16_t       cccd_val = enable ? BLE_GATT_HVX_NOTIFICATION : 0;
 
@@ -337,19 +384,19 @@ static uint32_t cccd_configure(uint16_t conn_handle, uint16_t handle_cccd, bool 
 
 uint32_t ble_uart_c_indicate_enable(ble_uart_c_t * p_ble_uart_c)
 {
-    VERIFY_PARAM_NOT_NULL(p_ble_uart_c);
+//    VERIFY_PARAM_NOT_NULL(p_ble_uart_c);
 
     if (p_ble_uart_c->conn_handle == BLE_CONN_HANDLE_INVALID)
     {
         return NRF_ERROR_INVALID_STATE;
     }
 
-    return cccd_configure(p_ble_uart_c->conn_handle, p_ble_uart_c->peer_db.uart_cccd_handle, true);
+    return cccd_configure(p_ble_uart_c->conn_handle, p_ble_uart_c->tx_peer_db.uart_cccd_handle, true);
 }
 
 /** @}
  *  @endcond
  */
-#endif // NRF_MODULE_ENABLED(BLE_RSCS_C)
+
 
 
