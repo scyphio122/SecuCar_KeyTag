@@ -10,17 +10,13 @@
 #define HARDWARE_INTERNAL_FLASH_H_
 
 #include <stdint-gcc.h>
+#include "internal_memory_organization.h"
 
 #define TRUE                                        (uint8_t)1
 #define FALSE                                       (uint8_t)0
 
-#define INTERNAL_FLASH_END_ADDRESS                  (uint32_t*)0x80000
-
 #define MAX_FLASH_OPERATION_ERROR_COUNTER           (uint8_t)3
-/** ADDRESSES               */
-#define INTERNAL_FLASH_SWAP_PAGE_ADDRESS            (uint32_t*)0x79000
 
-#define INTERNAL_FLASH_PAGE_SIZE                    (uint16_t)0x1000
 #define INTERNAL_FLASH_PAGE_SIZE_UINT32             (uint16_t)INTERNAL_FLASH_PAGE_SIZE/sizeof(uint32_t)
 
 /*< FLASH OPERATIONS MACROS */
@@ -40,7 +36,7 @@ typedef union
     uint32_t    doubleword;
 }dword_to_byte_u;
 
-uint32_t    InfFlashUpdatePage(uint8_t* p_data, uint32_t data_len, uint32_t* address);
+uint32_t    IntFlashUpdatePage(uint8_t* p_data, uint32_t data_len, uint32_t* address);
 uint32_t    IntFlashStoreWord(uint32_t data_to_flash, uint32_t* pointer);
 uint32_t    IntFlashErasePage(uint32_t* flash_page_beginning_address);
 void        SD_flash_operation_callback(uint32_t sys_evt);

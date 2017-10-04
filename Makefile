@@ -46,6 +46,7 @@ ASM_SOURCE_FILES += gcc_startup_nrf52.s
 C_SOURCE_FILES = src/main.c
 C_SOURCE_FILES += src/system_nrf52.c
 C_SOURCE_FILES += src/fifo.c
+C_SOURCE_FILES += src/crypto.c
 C_SOURCE_FILES += hardware/Systick.c
 C_SOURCE_FILES += hardware/UART.c
 C_SOURCE_FILES += hardware/SPI.c 

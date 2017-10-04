@@ -38,7 +38,7 @@ static void _FlashWaitTillOpDone()
 *               FLASH_OP_WRITE_ERROR    -   If the data couldn't been correctly flashed
 *
 */
-uint32_t InfFlashUpdatePage(uint8_t* p_data, uint32_t data_len, uint32_t* address)
+uint32_t IntFlashUpdatePage(uint8_t* p_data, uint32_t data_len, uint32_t* address)
 {
     uint32_t*           temp_pointer = address;     /*< Temp pointer needed to check if there is enough blank space for copy the data and to update the data */
     dword_to_byte_u     data;                       /*< Internal buffer for data. The size is equal to uint32_t */
