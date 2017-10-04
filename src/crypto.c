@@ -15,9 +15,14 @@
 #include "internal_memory_organization.h"
 #include "internal_flash.h"
 #include <string.h>
-#include "aes.h"
+//#include "aes.h"
 
 static uint8_t _lastKey[CRYPTO_KEY_SIZE];
+
+extern void AES_128_keyschedule(const uint8_t *, uint8_t *);
+extern void AES_128_keyschedule_dec(const uint8_t *, uint8_t *);
+extern void AES_128_encrypt(const uint8_t *, const uint8_t *, uint8_t *);
+extern void AES_128_decrypt(const uint8_t *, const uint8_t *, uint8_t *);
 
 uint32_t CryptoGenerateKey(uint8_t* generatedKey, uint8_t* generatedKeySize)
 {
@@ -83,7 +88,12 @@ uint32_t CryptoEncryptData(uint8_t* dataToEncrypt,
         return NRF_ERROR_DATA_SIZE;
     }
 
-    AES_ECB_encrypt(dataToEncrypt, key, encryptedData, dataSize);
+    uint8_t rk[11*16];
+    memcpy(rk, key, 16);
+    AES_128_keyschedule(key, rk+16);
+    AES_128_encrypt(rk, dataToEncrypt, encryptedData);
+
+//    AES_ECB_encrypt(dataToEncrypt, key, encryptedData, dataSize);
 
     return NRF_SUCCESS;
 }
@@ -100,7 +110,12 @@ uint32_t CryptoDecryptData(uint8_t* dataToDecrypt,
         return NRF_ERROR_DATA_SIZE;
     }
 
-    AES_ECB_decrypt(dataToDecrypt, key, decryptedData, dataSize);
+    uint8_t rk[11*16];
+    memcpy(rk+160, key, 16);
+    AES_128_keyschedule_dec(key, rk);
+    AES_128_decrypt(rk, dataToDecrypt, decryptedData);
+
+//    AES_ECB_decrypt(dataToDecrypt, key, decryptedData, dataSize);
 
     return NRF_SUCCESS;
 }

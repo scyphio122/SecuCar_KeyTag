@@ -27,6 +27,9 @@
 #include "ble_uart_service.h"
 #include "internal_flash.h"
 #include "nrf_sdh_soc.h"
+#include "ble_central.h"
+#include "crypto.h"
+
 /*
  *
  * Print a greeting message on standard output and exit.
@@ -79,30 +82,58 @@ void NVICInit()
 	NVIC_SetPriorityGrouping(0);
 }
 
-uint8_t buf[64] = {0};
-uint8_t buf2[64];
-int
-main(void)
+__attribute__((optimize("O0")))
+int main(void)
 {
-	memset(buf, 0xFF, 64);
 #if SOFTDEVICE_ENABLED
 	BleStackInit();
 
+    RTCInit(NRF_RTC1);
+    SystickInit();
 
 	GapParamsInit();
 	GattInit();
 //	ConnParamsInit();
 	ServicesInit();
 	AdvertisingInit();
-//	AdvertisingStart();
-#endif
-	RTCInit(NRF_RTC1);
-	SystickInit();
+	BleCentralInit();
 
-	uint32_t retcode = 0;
-	retcode = IntFlashStoreWord(0xDEADBEEF, (uint32_t*)0x30000);
-	retcode = IntFlashStoreWord(0x12345678, (uint32_t*)0x30004);
-	retcode = IntFlashErasePage((uint32_t*)0x30000);
+//	AdvertisingStart();
+//    BleCentralScanStart();
+#endif
+
+    // Check if the Main Key exists
+    if (!CryptoCheckMainKey())
+    {
+        CryptoGenerateAndStoreMainKey();
+    }
+
+    uint8_t data[16] = "DEADBEEFABBABAAB";
+    uint8_t dataEncrypted[16];
+    uint8_t dataDecrypted[16];
+
+    memset(dataEncrypted, 0, 16);
+    IntFlashErasePage((uint32_t*)0x30000);
+    uint32_t encryptStart = NRF_RTC1->COUNTER;
+    CryptoEncryptData(data, 16, (uint8_t*)CRYPTO_MAIN_KEY_ADDRESS, 16, dataEncrypted);
+    uint32_t encryptEnd = NRF_RTC1->COUNTER;
+    IntFlashUpdatePage(dataEncrypted, 16, (uint32_t*)0x30000);
+
+    memset(dataEncrypted, 0, 16);
+    memset(dataDecrypted, 0, 16);
+
+    memcpy(dataEncrypted, (uint8_t*)0x30000, 16);
+    uint32_t decryptStart = NRF_RTC1->COUNTER;
+    CryptoDecryptData(dataEncrypted, 16, (uint8_t*)CRYPTO_MAIN_KEY_ADDRESS, 16, dataDecrypted);
+    uint32_t decryptEnd = NRF_RTC1->COUNTER;
+
+    uint32_t encryptTime = (encryptEnd - encryptStart);
+    uint32_t decryptTime = decryptEnd - decryptStart;
+
+//	uint32_t retcode = 0;
+//	retcode = IntFlashStoreWord(0xDEADBEEF, (uint32_t*)0x30000);
+//	retcode = IntFlashStoreWord(0x12345678, (uint32_t*)0x30004);
+//	retcode = IntFlashErasePage((uint32_t*)0x30000);
 //	UartConfig(UART_BAUDRATE_BAUDRATE_Baud9600, UART_CONFIG_PARITY_Included, UART_CONFIG_HWFC_Disabled);
 //	UartEnable();
 //	UartSendDataSync("Hello World, it's nRF52!", sizeof("Hello World, it's nRF52!"));
@@ -110,12 +141,12 @@ main(void)
 //	SpiConfig(NRF_SPI0, SPI_FREQUENCY_FREQUENCY_M8, SPI_CONFIG_ORDER_MsbFirst, SPI_CONFIG_CPHA_Leading, SPI_CONFIG_CPOL_ActiveHigh);
 //	SpiEnable(NRF_SPI0);
 //	SpiWrite(NRF_SPI0, "Hello World, it's nRF52!", sizeof("Hello World, it's nRF52!"));
-//	UartReadDataEndCharSync(buf, '\n');
+//	UartReadDataEndCharSync(buf, '\n');M
 
 	nrf_gpio_cfg_output(17);
 	while(1)
 	{
-	    BleUartServicePendingTasks();
+//	    BleUartServicePendingTasks();
 //		RTCDelay(NRF_RTC1, RTC1_MS_TO_TICKS(1000));
 //		nrf_gpio_pin_toggle(17);
 	}

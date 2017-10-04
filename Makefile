@@ -43,6 +43,7 @@ INC_PATHS += $(SDK_INCLUDE_PATHS)
 #----------------------- PROJECT SOURCES ------------------------------
 
 ASM_SOURCE_FILES += gcc_startup_nrf52.s
+ASM_SOURCE_FILES += aes_cortexm.s
 
 C_SOURCE_FILES = src/main.c
 C_SOURCE_FILES += src/system_nrf52.c
