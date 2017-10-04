@@ -24,6 +24,7 @@ INC_PATHS += -Iinc/
 INC_PATHS += -Ihardware/
 INC_PATHS += -Ibluetooth/
 INC_PATHS += -Ibluetooth/services/
+INC_PATHS += -Iutils/
 INC_PATHS += -I$(nRF52_SDK)/components/ble/common/
 INC_PATHS += -I$(nRF52_SDK)/components/libraries/
 INC_PATHS += -I$(nRF52_SDK)/components/libraries/util/
@@ -47,6 +48,7 @@ C_SOURCE_FILES = src/main.c
 C_SOURCE_FILES += src/system_nrf52.c
 C_SOURCE_FILES += src/fifo.c
 C_SOURCE_FILES += src/crypto.c
+C_SOURCE_FILES += utils/aes.c
 C_SOURCE_FILES += hardware/Systick.c
 C_SOURCE_FILES += hardware/UART.c
 C_SOURCE_FILES += hardware/SPI.c 
@@ -80,7 +82,7 @@ CFLAGS +=	$(OPTIMIZATION)
 CFLAGS += 	-mcpu=cortex-m4
 CFLAGS +=   -mabi=aapcs
 CFLAGS +=   -mthumb
-CFLAGS += 	-mfloat-abi=soft
+CFLAGS += 	-mfloat-abi=hard
 CFLAGS += 	-mfpu=fpv4-sp-d16
 CFLAGS +=   -DARM_MATH_CM4
 CFLAGS +=	--std=gnu99
@@ -111,6 +113,7 @@ CFLAGS +=   -DAPP_FIFO_ENABLED=1
 CFLAGS +=   -DS132
 CFLAGS +=   -DNRF_SDH_BLE_PERIPHERAL_LINK_COUNT=1
 CFLAGS +=   -DNRF_SDH_BLE_CENTRAL_LINK_COUNT=1
+CFLAGS +=   -DECB=1										 #AES cipher method 
 
 ASMFLAGS += -x assembler-with-cpp
 ASMFLAGS += -DARM_MATH_CM4
@@ -121,14 +124,14 @@ ASMFLAGS += -D__STARTUP_CLEAR_BSS	# Needed to zero BSS section in RAM by the sta
 
 LDFLAGS += -mcpu=cortex-m4
 LDFLAGS += -mabi=aapcs
-LDFLAGS += -mfloat-abi=soft
+LDFLAGS += -mfloat-abi=hard
 LDFLAGS += -mfpu=fpv4-sp-d16
 LDFLAGS += -Xlinker -Map=$(OUTPUT_BINARY_FOLDER)/$(OUTPUT_BINARY_NAME).map
 LDFLAGS += -Wl,--gc-sections
 LDFLAGS += -T"$(nRF52_SDK)/$(LINKER_SCRIPT)"
 LDFLAGS += -L"$(nRF52_SDK)"
-LDFLAGS += -L/home/konrad/Tools/gcc-arm-none-eabi-6-2017-q2-update/arm-none-eabi/lib/thumb/v7e-m
-LDFLAGS += -L/home/konrad/Tools/GNU_ARM_GCC/gcc-arm-none-eabi-5_4-2016q3/arm-none-eabi/lib/armv7e-m 
+LDFLAGS += -L/home/konrad/Projects/Bare_Metal/Car_Tracker/libs/hard
+LDFLAGS += -L/home/konrad/Projects/Bare_Metal/Car_Tracker/libs
 LDFLAGS += --specs=nano.specs -lc -lnosys
 LDFLAGS += -lgcc
 

@@ -15,6 +15,7 @@
 #include "internal_memory_organization.h"
 #include "internal_flash.h"
 #include <string.h>
+#include "aes.h"
 
 static uint8_t _lastKey[CRYPTO_KEY_SIZE];
 
@@ -76,21 +77,13 @@ uint32_t CryptoEncryptData(uint8_t* dataToEncrypt,
                            uint8_t keySize,
                            uint8_t* encryptedData)
 {
-    // Assert the data size. It should be 4 bytes aligned
-    if ((dataSize % sizeof(uint32_t)) != 0 || dataSize > 16)
+    // Assert the data size.
+    if (dataSize != CRYPTO_KEY_SIZE)
     {
         return NRF_ERROR_DATA_SIZE;
     }
 
-    nrf_ecb_hal_data_t ecb;
-    memset(&ecb, 0, sizeof(nrf_ecb_hal_data_t));
-    memcpy(ecb.cleartext, dataToEncrypt, dataSize);
-    memcpy(ecb.key, key, keySize);
-
-    sd_ecb_block_encrypt(&ecb);
-
-    memcpy(_lastKey, key, keySize);
-    memcpy(encryptedData, ecb.ciphertext, dataSize);
+    AES_ECB_encrypt(dataToEncrypt, key, encryptedData, dataSize);
 
     return NRF_SUCCESS;
 }
@@ -101,20 +94,13 @@ uint32_t CryptoDecryptData(uint8_t* dataToDecrypt,
                            uint8_t keySize,
                            uint8_t* decryptedData)
 {
-    // Assert the data size. It should be 4 bytes aligned
-    if ((dataSize % sizeof(uint32_t)) != 0 || dataSize > 16)
+    // Assert the data size.
+    if (dataSize != CRYPTO_KEY_SIZE)
     {
         return NRF_ERROR_DATA_SIZE;
     }
 
-    nrf_ecb_hal_data_t ecb;
-    memset(&ecb, 0, sizeof(nrf_ecb_hal_data_t));
-    memcpy(ecb.cleartext, dataToDecrypt, dataSize);
-    memcpy(ecb.key, key, keySize);
-
-    sd_ecb_block_encrypt(&ecb);
-
-    memcpy(decryptedData, ecb.ciphertext, dataSize);
+    AES_ECB_decrypt(dataToDecrypt, key, decryptedData, dataSize);
 
     return NRF_SUCCESS;
 }
