@@ -38,7 +38,7 @@ uint32_t CryptoGenerateKey(uint8_t* generatedKey, uint8_t* generatedKeySize);
 uint32_t CryptoGenerateAndStoreMainKey();
 
 /**
- * @brief This function encrypts up to 16 bytes of data
+ * @brief This function encrypts up to 16 bytes of data using ECB alghoritm
  * @param dataToEncrypt[in] - pointer to the buffer with data which is to be encrypted
  * @param dataSize[in] - size of the data to be encrypted
  * @param key[in] - pointer to the buffer with the key
@@ -46,14 +46,14 @@ uint32_t CryptoGenerateAndStoreMainKey();
  * @param encryptedData[out] - pointer to the buffer with encrypted data. Encrypted data size is the same as data to encrypt buffer size
  * @return NRF_SUCCESS
  */
-uint32_t CryptoEncryptData(uint8_t* dataToEncrypt,
-                           uint16_t dataSize,
-                           uint8_t* key,
-                           uint8_t keySize,
-                           uint8_t* encryptedData);
+uint32_t CryptoECBEncryptData(uint8_t* dataToEncrypt,
+                              uint16_t dataSize,
+                              uint8_t* key,
+                              uint8_t keySize,
+                              uint8_t* encryptedData);
 
 /**
- * @brief This function decrypts up to 16 bytes of data
+ * @brief This function decrypts up to 16 bytes of data using ECB alghoritm
  * @param dataToDecrypt[in] - pointer to the buffer with data to be decrypted
  * @param dataSize[in] - size of data to be decrypted
  * @param key[in] - pointer to the buffer holding key
@@ -61,10 +61,44 @@ uint32_t CryptoEncryptData(uint8_t* dataToEncrypt,
  * @param decryptedData[out] - pointer to the buffer holding decrypted data
  * @return NRF_SUCCESS
  */
-uint32_t CryptoDecryptData(uint8_t* dataToDecrypt,
-                           uint16_t dataSize,
-                           uint8_t* key,
-                           uint8_t keySize,
-                           uint8_t* decryptedData);
+uint32_t CryptoECBDecryptData(uint8_t* dataToDecrypt,
+                              uint16_t dataSize,
+                              uint8_t* key,
+                              uint8_t keySize,
+                              uint8_t* decryptedData);
 
+
+/**
+ * @brief This function uses CFB alghoritm to encrypt the data
+ * @param dataToEncrypt[in] - pointer to the data to be encrypted
+ * @param initialisingVector[in] - pointer to the initialising vector
+ * @param key[in] - pointer to the key
+ * @param keySize[in] - size of the key in bytes
+ * @param encryptedData[out] - pointer to the buffer where encrypted data is to be stored
+ * @param dataSize[in] - size of the @ref dataToEncrypt and @ref encryptedData buffers
+ * @return NRF_SUCCESS
+ */
+uint32_t CryptoCFBEncryptData(uint8_t* dataToEncrypt,
+                              uint8_t* initialisingVector,
+                              uint8_t* key,
+                              uint8_t  keySize,
+                              uint8_t* encryptedData,
+                              uint32_t dataSize);
+
+/**
+ * @brief This function uses CFB alghoritm to decrypt the data
+ * @param encryptedData[in] - pointer to the data to be decrypted
+ * @param initialisingVector[in] - pointer to the initialising vector
+ * @param key[in] - pointer to the key
+ * @param keySize[in] - size of the key in bytes
+ * @param decryptedData[out] - pointer to the buffer where the decrypted data is to be stored
+ * @param dataSize[in] - size of the @ref encryptedData and @ref decryptedData buffers
+ * @return NRF_SUCCESS
+ */
+uint32_t CryptoCFBDecryptData(uint8_t* encryptedData,
+                              uint8_t* initialisingVector,
+                              uint8_t* key,
+                              uint8_t  keySize,
+                              uint8_t* decryptedData,
+                              uint32_t dataSize);
 #endif /* INC_CRYPTO_H_ */

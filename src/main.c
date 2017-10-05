@@ -13,6 +13,7 @@
 #include "nrf_gpio.h"
 #include "nrf52.h"
 #include "nrf52_bitfields.h"
+#include "nrf_soc.h"
 #include "core_cm4.h"
 #include "Systick.h"
 #include "nrf_sdm.h"
@@ -108,23 +109,30 @@ int main(void)
         CryptoGenerateAndStoreMainKey();
     }
 
-    uint8_t data[16] = "DEADBEEFABBABAAB";
-    uint8_t dataEncrypted[16];
-    uint8_t dataDecrypted[16];
-
-    memset(dataEncrypted, 0, 16);
+    uint8_t data[64] = "Litwo, Ojczyzno moja, Ty jestes jak zdrowie, Ten tylko sie dowie";
+    uint8_t dataEncrypted[64];
+    uint8_t dataDecrypted[64];
+    uint8_t iv[16];
+    uint8_t ivSize;
+    CryptoGenerateKey((uint8_t*)iv, &ivSize);
+    memset(dataEncrypted, 0, 64);
     IntFlashErasePage((uint32_t*)0x30000);
+
+
     uint32_t encryptStart = NRF_RTC1->COUNTER;
-    CryptoEncryptData(data, 16, (uint8_t*)CRYPTO_MAIN_KEY_ADDRESS, 16, dataEncrypted);
+    CryptoCFBEncryptData(data, iv, (uint8_t*)CRYPTO_MAIN_KEY_ADDRESS, 16, dataEncrypted, 64);
+    //CryptoEncryptData(data, 16, (uint8_t*)CRYPTO_MAIN_KEY_ADDRESS, 16, dataEncrypted);
     uint32_t encryptEnd = NRF_RTC1->COUNTER;
-    IntFlashUpdatePage(dataEncrypted, 16, (uint32_t*)0x30000);
 
-    memset(dataEncrypted, 0, 16);
-    memset(dataDecrypted, 0, 16);
+    IntFlashUpdatePage(dataEncrypted, 64, (uint32_t*)0x30000);
 
-    memcpy(dataEncrypted, (uint8_t*)0x30000, 16);
+    memset(dataEncrypted, 0, 64);
+    memset(dataDecrypted, 0, 64);
+
+    memcpy(dataEncrypted, (uint8_t*)0x30000, 64);
     uint32_t decryptStart = NRF_RTC1->COUNTER;
-    CryptoDecryptData(dataEncrypted, 16, (uint8_t*)CRYPTO_MAIN_KEY_ADDRESS, 16, dataDecrypted);
+    CryptoCFBDecryptData(dataEncrypted, iv, (uint8_t*)CRYPTO_MAIN_KEY_ADDRESS, 16, dataDecrypted, 64);
+//    CryptoECBDecryptData(dataEncrypted, 16, (uint8_t*)CRYPTO_MAIN_KEY_ADDRESS, 16, dataDecrypted);
     uint32_t decryptEnd = NRF_RTC1->COUNTER;
 
     uint32_t encryptTime = (encryptEnd - encryptStart);

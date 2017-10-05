@@ -15,7 +15,7 @@
 #include "internal_memory_organization.h"
 #include "internal_flash.h"
 #include <string.h>
-//#include "aes.h"
+#include <malloc.h>
 
 static uint8_t _lastKey[CRYPTO_KEY_SIZE];
 
@@ -23,6 +23,20 @@ extern void AES_128_keyschedule(const uint8_t *, uint8_t *);
 extern void AES_128_keyschedule_dec(const uint8_t *, uint8_t *);
 extern void AES_128_encrypt(const uint8_t *, const uint8_t *, uint8_t *);
 extern void AES_128_decrypt(const uint8_t *, const uint8_t *, uint8_t *);
+
+static uint32_t* _XorData(uint32_t* leftSide, uint32_t* rightSide, uint16_t wordCount)
+{
+    uint32_t* output = leftSide;
+    while (wordCount != 0)
+    {
+        *leftSide ^= *rightSide;
+        leftSide++;
+        rightSide++;
+        wordCount--;
+    }
+
+    return output;
+}
 
 uint32_t CryptoGenerateKey(uint8_t* generatedKey, uint8_t* generatedKeySize)
 {
@@ -76,7 +90,7 @@ uint32_t CryptoGenerateAndStoreMainKey()
     return NRF_SUCCESS;
 }
 
-uint32_t CryptoEncryptData(uint8_t* dataToEncrypt,
+uint32_t CryptoECBEncryptData(uint8_t* dataToEncrypt,
                            uint16_t dataSize,
                            uint8_t* key,
                            uint8_t keySize,
@@ -93,12 +107,10 @@ uint32_t CryptoEncryptData(uint8_t* dataToEncrypt,
     AES_128_keyschedule(key, rk+16);
     AES_128_encrypt(rk, dataToEncrypt, encryptedData);
 
-//    AES_ECB_encrypt(dataToEncrypt, key, encryptedData, dataSize);
-
     return NRF_SUCCESS;
 }
 
-uint32_t CryptoDecryptData(uint8_t* dataToDecrypt,
+uint32_t CryptoECBDecryptData(uint8_t* dataToDecrypt,
                            uint16_t dataSize,
                            uint8_t* key,
                            uint8_t keySize,
@@ -112,10 +124,95 @@ uint32_t CryptoDecryptData(uint8_t* dataToDecrypt,
 
     uint8_t rk[11*16];
     memcpy(rk+160, key, 16);
+
     AES_128_keyschedule_dec(key, rk);
     AES_128_decrypt(rk, dataToDecrypt, decryptedData);
 
-//    AES_ECB_decrypt(dataToDecrypt, key, decryptedData, dataSize);
 
     return NRF_SUCCESS;
 }
+
+uint32_t CryptoCFBEncryptData(uint8_t* dataToEncrypt,
+                              uint8_t* initialisingVector,
+                              uint8_t* key,
+                              uint8_t  keySize,
+                              uint8_t* encryptedData,
+                              uint32_t dataSize)
+{
+    // Assert the data size. It should be a multiple of keySize
+    if (dataSize % keySize != 0)
+    {
+        return NRF_ERROR_DATA_SIZE;
+    }
+
+    uint16_t blocksCount = dataSize/keySize;
+    uint8_t* tmpInitVector = malloc(keySize);
+
+    memcpy(tmpInitVector, initialisingVector, keySize);
+
+
+    for (uint16_t i=0; i<blocksCount; ++i)
+    {
+        // Encrypt the initialising vector and store the output in encryptedDatabuffer
+        CryptoECBEncryptData(tmpInitVector,
+                             keySize,
+                             key,
+                             keySize,
+                             encryptedData);
+
+        // Xor the encrypting output with part of data to be encrypted
+        encryptedData = (uint8_t*)_XorData((uint32_t*)encryptedData, (uint32_t*)dataToEncrypt, keySize/sizeof(uint32_t));
+        // The encrypted data is an initialising vector for the next data packet
+        memcpy(tmpInitVector, encryptedData, keySize);
+        // Increase the pointers to point to the next packet
+        dataToEncrypt += keySize;
+        encryptedData += keySize;
+    }
+
+    free(tmpInitVector);
+    return NRF_SUCCESS;
+}
+
+uint32_t CryptoCFBDecryptData(uint8_t* encryptedData,
+                              uint8_t* initialisingVector,
+                              uint8_t* key,
+                              uint8_t  keySize,
+                              uint8_t* decryptedData,
+                              uint32_t dataSize)
+{
+    // Assert the data size. It should be a multiple of keySize
+    if (dataSize % keySize != 0)
+    {
+        return NRF_ERROR_DATA_SIZE;
+    }
+
+    uint16_t blocksCount = dataSize/keySize;
+    uint8_t* tmpInitVector = malloc(keySize);
+
+    memcpy(tmpInitVector, initialisingVector, keySize);
+
+
+    for (uint16_t i=0; i<blocksCount; ++i)
+    {
+        // Encrypt the initialising vector and store the output in encryptedDatabuffer
+        CryptoECBEncryptData(tmpInitVector,
+                             keySize,
+                             key,
+                             keySize,
+                             decryptedData);
+
+        // Xor the encrypting output with part of data to be encrypted
+        decryptedData = (uint8_t*)_XorData((uint32_t*)decryptedData, (uint32_t*)encryptedData, keySize/sizeof(uint32_t));
+        // The encrypted data is an initialising vector for the next data packet
+        memcpy(tmpInitVector, encryptedData, keySize);
+        // Increase the pointers to point to the next packet
+        encryptedData += keySize;
+        decryptedData += keySize;
+    }
+
+    free(tmpInitVector);
+    return NRF_SUCCESS;
+
+}
+
+
