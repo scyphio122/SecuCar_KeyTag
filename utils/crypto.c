@@ -212,7 +212,7 @@ uint32_t CryptoCFBDecryptData(uint8_t* encryptedData,
 
     free(tmpInitVector);
     return NRF_SUCCESS;
-
 }
+
 
 
