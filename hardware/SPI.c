@@ -374,3 +374,13 @@ E_SPI_Errors SpiRead(NRF_SPI_Type* spi, uint8_t* out_buf, uint16_t data_size)
 	}
 	return error;
 }
+
+void SpiCSAssert(uint8_t cs_pin)
+{
+    NRF_GPIO->OUTCLR = 1 << cs_pin;
+}
+
+void SpiCSDeassert(uint8_t cs_pin)
+{
+    NRF_GPIO->OUTSET = 1 << cs_pin;
+}

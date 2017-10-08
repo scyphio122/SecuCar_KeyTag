@@ -54,6 +54,10 @@ E_SPI_Errors SpiWrite(NRF_SPI_Type* spi, uint8_t* in_buf, uint16_t data_size);
 
 E_SPI_Errors SpiRead(NRF_SPI_Type* spi, uint8_t* out_buf, uint16_t data_size);
 
+void SpiCSAssert(uint8_t cs_pin);
+
+void SpiCSDeassert(uint8_t cs_pin);
+
 
 
 #endif /* HARDWARE_SPI_H_ */
