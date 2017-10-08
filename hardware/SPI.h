@@ -44,7 +44,8 @@ void SpiConfig(NRF_SPI_Type* spi,
 				E_SPI_Frequency frequency,
 				uint8_t bytes_order,
 				uint8_t sck_phase,
-				uint8_t sck_polarity);
+				uint8_t sck_polarity,
+                uint8_t csPin);
 
 void SpiEnable(NRF_SPI_Type* spi);
 

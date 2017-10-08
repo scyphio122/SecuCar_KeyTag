@@ -14,6 +14,7 @@
 #define EXT_FLASH_END_ADDRESS                                   (uint32_t)0x800000
 #define EXT_FLASH_TURN_ON_DELAY_READ_US                         (uint8_t)100
 #define EXT_FLASH_TURN_ON_DELAY_PROGRAM_ERASE_US                (uint16_t)3100
+#define EXT_FLASH_OP_POLL_TIME_MS                               (uint8_t)1
 
 
 /**         EXTERNAL FLASH COMMANDS         **/
@@ -127,35 +128,35 @@ typedef enum
 }ext_flash_sector_numbers_e;
 #pragma GCC pop
 
-uint32_t Ext_Flash_Init();
+uint32_t ExtFlashInit();
 
-uint32_t Ext_Flash_Turn_On(ext_flash_operation_type_e read_or_erase);
+uint32_t ExtFlashTurnOn(ext_flash_operation_type_e read_or_erase);
 
-uint32_t Ext_Flash_Turn_Off();
+uint32_t ExtFlashTurnOff();
 
-uint32_t Ext_Flash_Read_Status_Reg();
+uint32_t ExtFlashReadStatusReg();
 
-uint32_t Ext_Flash_Write_Buffer(ext_flash_buffer_number_e buffer_number, uint8_t buffer_address, uint8_t* data, uint16_t data_size);
+uint32_t ExtFlashWriteBuffer(ext_flash_buffer_number_e buffer_number, uint8_t buffer_address, uint8_t* data, uint16_t data_size);
 
-uint32_t Ext_Flash_Program_Page_With_Preerase(ext_flash_buffer_number_e buf_number, uint32_t address);
+uint32_t ExtFlashProgramPageWithPreerase(ext_flash_buffer_number_e buf_number, uint32_t address);
 
-uint32_t Ext_Flash_Program_Page_Without_Preerase(ext_flash_buffer_number_e buf_number, uint32_t address);
+uint32_t ExtFlashProgramPageWithoutPreerase(ext_flash_buffer_number_e buf_number, uint32_t address);
 
-uint32_t Ext_Flash_Program_Page_Through_Buffer_Without_Preerase(uint32_t address, uint8_t *data, uint16_t data_size);
+uint32_t ExtFlashProgramPageThroughBufferWithoutPreerase(uint32_t address, uint8_t *data, uint16_t data_size);
 
-uint32_t Ext_Flash_Update_Data_On_Page(ext_flash_buffer_number_e buf_number, uint32_t address, uint8_t *data, uint16_t data_size);
+uint32_t ExtFlashUpdateDataOnPage(ext_flash_buffer_number_e buf_number, uint32_t address, uint8_t *data, uint16_t data_size);
 
-uint32_t Ext_Flash_Erase_Chip();
+uint32_t ExtFlashEraseChip();
 
-uint32_t Ext_Flash_Erase_Sector(ext_flash_sector_numbers_e sector_number);
+uint32_t ExtFlashEraseSector(ext_flash_sector_numbers_e sector_number);
 
-uint32_t Ext_Flash_Erase_Block(uint16_t block_number);
+uint32_t ExtFlashEraseBlock(uint16_t block_number);
 
-uint32_t Ext_Flash_Erase_Page(uint32_t address);
+uint32_t ExtFlashErasePage(uint32_t address);
 
-uint32_t Ext_Flash_Read_Page(uint32_t address, uint8_t* data_buf, uint16_t data_size);
+uint32_t ExtFlashReadPage(uint32_t address, uint8_t* data_buf, uint16_t data_size);
 
-uint32_t Ext_Flash_Read_Continuous(uint32_t address, uint8_t* data_buf, uint16_t data_size);
+uint32_t ExtFlashRead_ontinuous(uint32_t address, uint8_t* data_buf, uint16_t data_size);
 
-uint32_t Ext_Flash_Read_Buffer(uint8_t buf_read_command, uint8_t buffer_address, uint8_t* data_buf, uint16_t data_size);
+uint32_t ExtFlashReadBuffer(uint8_t buf_read_command, uint8_t buffer_address, uint8_t* data_buf, uint16_t data_size);
 #endif /* HARDWARE_EXT_FLASH_H_ */

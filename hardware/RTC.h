@@ -29,6 +29,10 @@
 #define RTC2_MS_TO_TICKS(time_ms)	(time_ms*RTC2_FREQUENCY/1000)
 #define RTC2_US_TO_TICKS(time_us)	(time_us*RTC2_FREQUENCY/1000000)
 
+#define RTC_TIMEOUT_ARRAY_SIZE      3
+
+extern volatile rtc_timeout_t rtcTimeoutArray[RTC_TIMEOUT_ARRAY_SIZE];
+
 typedef enum
 {
 	E_RTC_OK = 0,

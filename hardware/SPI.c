@@ -142,7 +142,8 @@ void SpiConfig(NRF_SPI_Type* spi,
 				E_SPI_Frequency frequency,
 				uint8_t bytes_order,
 				uint8_t sck_phase,
-				uint8_t sck_polarity)
+				uint8_t sck_polarity,
+				uint8_t csPin)
 {
 
 	uint32_t ret = 0xFFFFFFFF;
@@ -154,7 +155,7 @@ void SpiConfig(NRF_SPI_Type* spi,
 
 			nrf_gpio_cfg_output(SPI0_SCK_PIN);
 			nrf_gpio_cfg_output(SPI0_MOSI_PIN);
-			nrf_gpio_cfg_output(SPI0_CS_PIN);
+			nrf_gpio_cfg_output(csPin);
 			nrf_gpio_cfg_input(SPI0_MISO_PIN, GPIO_PIN_CNF_PULL_Pullup);
 
 			spi->PSEL.SCK  = SPI0_SCK_PIN;
@@ -176,7 +177,7 @@ void SpiConfig(NRF_SPI_Type* spi,
 
 			nrf_gpio_cfg_output(SPI1_SCK_PIN);
 			nrf_gpio_cfg_output(SPI1_MOSI_PIN);
-			nrf_gpio_cfg_output(SPI1_CS_PIN);
+			nrf_gpio_cfg_output(csPin);
 			nrf_gpio_cfg_input(SPI1_MISO_PIN, GPIO_PIN_CNF_PULL_Pullup);
 
 			spi->PSEL.SCK  = SPI1_SCK_PIN;
@@ -198,7 +199,7 @@ void SpiConfig(NRF_SPI_Type* spi,
 
 			nrf_gpio_cfg_output(SPI2_SCK_PIN);
 			nrf_gpio_cfg_output(SPI2_MOSI_PIN);
-			nrf_gpio_cfg_output(SPI2_CS_PIN);
+			nrf_gpio_cfg_output(csPin);
 			nrf_gpio_cfg_input(SPI2_MISO_PIN, GPIO_PIN_CNF_PULL_Pullup);
 
 			spi->PSEL.SCK  = SPI2_SCK_PIN;

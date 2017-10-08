@@ -16,8 +16,6 @@
 #define	TIMEOUT_REGISTER_SECOND		2
 #define TIMEOUT_REGISTER_THIRD  	3
 
-#define RTC_TIMEOUT_ARRAY_SIZE		3
-
 volatile rtc_timeout_t rtcTimeoutArray[RTC_TIMEOUT_ARRAY_SIZE];		/**< Array in which active timeout requests are held */
 volatile bool rtc1_delay_completed_flag;							/**< Delay flag - set to true if the delay has been completed */
 volatile bool rtc2_delay_completed_flag;							/**< Delay flag - set to true if the delay has been completed */
