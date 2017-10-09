@@ -9,15 +9,14 @@
 #define UTILS_FILE_SYSTEM_H_
 
 #include "stdint-gcc.h"
-#include "int_flash.h"
-#include "ext_flash.h"
+#include "external_flash_driver.h"
 
 #define EXT_FLASH_AVAILABLE                         (uint8_t)1
 
 typedef struct
 {
     uint16_t entry_number;
-    uint16_t entry_size_in_bytes;
+    uint16_t num_of_samples;
     uint32_t entry_timestamp;
     uint32_t available_samples_count;
     uint32_t driving_assessment;
@@ -32,6 +31,15 @@ typedef struct
     uint8_t  acceleration;
     uint16_t azimuth;
 }mem_org_gps_sample_t;
+
+typedef enum
+{
+    E_OP_SUCCESS,
+    E_TIMEOUT,
+    E_NOT_FOUND
+}mem_org_error_code_e;
+
+typedef uint32_t mem_org_key_t;
 
 #ifndef EXT_FLASH_AVAILABLE
     #define MEM_ORG_KEY_AREA_START_ADDRESS              (uint32_t)0x28800
@@ -50,17 +58,18 @@ typedef struct
     #define MEM_ORG_KEY_AREA_START_ADDRESS              (uint32_t)0
     #define MEM_ORG_KEY_AREA_END_ADDRESS                (uint32_t)0x2000
 
-    #define MEM_ORG_KEY_AREA_KEYS_ON_PAGE               (uint8_t)(EXT_FLASH_PAGE_SIZE - sizeof(mem_org_flash_page_header_t))/4
+    #define MEM_ORG_KEY_AREA_KEYS_ON_PAGE               (uint8_t)((EXT_FLASH_PAGE_SIZE - sizeof(mem_org_flash_page_header_t))/sizeof(mem_org_key_t))
 
     #define MEM_ORG_DATA_AREA_START_ADDRESS             MEM_ORG_KEY_AREA_END_ADDRESS
     #define MEM_ORG_DATA_AREA_END_ADDRESS               (uint32_t)EXT_FLASH_END_ADDRESS
 
-    #define MEM_ORG_DATA_SAMPLES_ON_INT_FLASH_PAGE      (uint8_t)10
+    #define MEM_ORG_DATA_SAMPLES_ON_FLASH_PAGE         (uint8_t)((EXT_FLASH_PAGE_SIZE - sizeof(mem_org_flash_page_header_t))/sizeof(mem_org_gps_sample_t))
 
     #define MEM_ORG_KEY_ADD_SHIFT                       (uint8_t)5
     #define MEM_ORG_KEY_TRACK_NUMBER_SHIFT              (uint8_t)16
 #endif
 
+#define MEM_ORG_KEY_NOT_INITIALIZED                     (uint32_t)(0x80000000)
 
 
 extern volatile uint8_t         mem_org_track_samples_storage_enabled;

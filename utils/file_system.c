@@ -6,8 +6,6 @@
  */
 
 
-#include <BLE/ble_uart.h>
-#include <GPS.h>
 #include "file_system.h"
 #include <nrf_error.h>
 #include <nrf_soc.h>
@@ -16,25 +14,25 @@
 #include <stdbool.h>
 #include <string.h>
 #include "external_flash_driver.h"
-
-
+#include <limits.h>
 
 static uint32_t         mem_org_next_free_key_address = MEM_ORG_KEY_AREA_START_ADDRESS;
 static uint32_t         mem_org_next_free_data_sample_address = MEM_ORG_DATA_AREA_START_ADDRESS;
 static uint16_t         mem_org_tracks_stored = 0;
 volatile uint8_t        mem_org_track_samples_storage_enabled = 0;
-static uint16_t         mem_org_track_size;
+static uint32_t         mem_org_track_sample_count;
 uint32_t                mem_org_gps_sample_storage_interval = 15;
+
 /**
  * \brief This function finds the first free key address pn the page (if existing)
  *
  * \param           page_address - address within the page to search
  * \param[out]      key_address - the buffer for the key if found. If not found, NULL value is stored
  *
- * \return  NRF_SUCCESS - the key was found
- *          NRF_ERROR_NOT_FOUND - the key was not found
+ * \return  E_OP_SUCCESS - the key was found
+ *          E_NOT_FOUND - the key was not found
  */
-static uint32_t MemOrgKeyFindFirstFreeOnPage(uint32_t page_address, uint32_t* key_address)
+static mem_org_error_code_e MemOrgKeyFindFirstFreeOnPage(uint32_t page_address, uint32_t* key_address)
 {
     uint32_t temp_key = 0;
 #ifndef EXT_FLASH_AVAILABLE
@@ -53,7 +51,7 @@ static uint32_t MemOrgKeyFindFirstFreeOnPage(uint32_t page_address, uint32_t* ke
 #ifndef EXT_FLASH_AVAILABLE
         memcpy(&temp_key, (uint32_t*)page_address, sizeof(uint32_t));
 #else
-        ExtFlashReadPage(page_address, &temp_key, sizeof(uint32_t));
+        ExtFlashReadPage(page_address, &temp_key, sizeof(mem_org_key_t));
 #endif
         if(temp_key == 0xFFFFFFFF)
         {
@@ -61,12 +59,12 @@ static uint32_t MemOrgKeyFindFirstFreeOnPage(uint32_t page_address, uint32_t* ke
 #ifdef EXT_FLASH_AVAILABLE
         ExtFlashTurnOff();
 #endif
-            return NRF_SUCCESS;
+            return E_OP_SUCCESS;
         }
         else
         {
             mem_org_tracks_stored = (temp_key >> MEM_ORG_KEY_TRACK_NUMBER_SHIFT) & 0x7FFF;
-            page_address += 4;
+            page_address += sizeof(mem_org_key_t);
         }
     }while(page_address < next_page_address);
 
@@ -74,7 +72,7 @@ static uint32_t MemOrgKeyFindFirstFreeOnPage(uint32_t page_address, uint32_t* ke
 #ifdef EXT_FLASH_AVAILABLE
         ExtFlashTurnOff();
 #endif
-    return NRF_ERROR_NOT_FOUND;
+    return E_NOT_FOUND;
 }
 
 /**
@@ -108,109 +106,121 @@ static inline uint32_t Mem_Org_Get_Key_Encoded_Track_Number(uint32_t key)
  * \return  NRF_SUCCESS - the key was found
  *          NRF_ERROR_NOT_FOUND - the key wasn't found
  */
-static uint32_t Mem_Org_Key_Find_First_Free()
+static mem_org_error_code_e Mem_Org_Key_Find_First_Free()
 {
     uint32_t ret_val = 0;
     for(uint32_t i = MEM_ORG_KEY_AREA_START_ADDRESS; i< MEM_ORG_KEY_AREA_END_ADDRESS; i += 1024)
     {
         ret_val = Mem_Org_Key_Find_First_Free_On_Page(i, &mem_org_next_free_key_address);
-        if(ret_val == NRF_SUCCESS)
+        if(ret_val == E_OP_SUCCESS)
         {
-            return NRF_SUCCESS;
+            return E_OP_SUCCESS;
         }
     }
 
-    return NRF_ERROR_NOT_FOUND;
+    return E_NOT_FOUND;
 }
 
 /**
  * \brief This function finds the first free page where the track can be stored
  *
- * \return  NRF_SUCCESS - everything went fine
- *          NRF_ERROR_INTERNAL - timeout event occured
+ * \return  E_OP_SUCCESS - everything went fine
+ *          E_TIMEOUT - timeout event occured
  */
-static uint32_t Mem_Org_Track_Address_Find_First_Free()
+static mem_org_error_code_e Mem_Org_Track_Address_Find_First_Free()
 {
-    uint32_t err_code = 0;
+    mem_org_error_code_e err_code = 0;
     uint32_t key;
     uint8_t  timeoutId = 0;
+
 #ifdef EXT_FLASH_AVAILABLE
         ExtFlashTurnOn(EXT_FLASH_READ_OP);
 #endif
     /// Get the last key
     err_code = Mem_Org_Find_Key(mem_org_tracks_stored, &key);
-    if(err_code == NRF_ERROR_NOT_FOUND)
+    if(err_code == E_NOT_FOUND)
     {
-        mem_org_next_free_data_sample_address = MEM_ORG_DATA_AREA_START_ADDRESS;
+        mem_org_next_free_data_sample_address = MEM_ORG_DATA_AREA_START_ADDRESS + sizeof(mem_org_flash_page_header_t);
     }
     else
     {
-        uint32_t data_address = Mem_Org_Get_Key_Encoded_Address(key);
         mem_org_flash_page_header_t header;
+        // Get the track header address
+        uint32_t header_address = Mem_Org_Get_Key_Encoded_Address(key);
+
+        // Get the header
 #ifndef EXT_FLASH_AVAILABLE
         uint16_t flash_page_size = INTERNAL_FLASH_PAGE_SIZE;
         memcpy((uint32_t*)&header, (uint32_t*)data_address, sizeof(uint32_t));
 #else
         uint16_t flash_page_size = EXT_FLASH_PAGE_SIZE;
-        ExtFlashReadPage(data_address, &header, sizeof(uint32_t));
+        ExtFlashReadPage(header_address, &header, sizeof(uint32_t));
 #endif
 
-        if(header.entry_size_in_bytes != 0xFFFF)
+        // If the track is complete (the num_of_samples is stored)
+        if(header.num_of_samples != 0xFFFF)
         {
-            uint8_t flash_pages_used = header.entry_size_in_bytes/(MEM_ORG_DATA_SAMPLES_ON_INT_FLASH_PAGE*sizeof(mem_org_gps_sample_t));
+            uint16_t flash_pages_used = (header.num_of_samples*sizeof(mem_org_gps_sample_t))/MEM_ORG_DATA_SAMPLES_ON_FLASH_PAGE;
 
-            mem_org_next_free_data_sample_address = data_address + (flash_pages_used + 1)*flash_page_size;
+            // Get the pointer to the next free sample
+            mem_org_next_free_data_sample_address = header_address + (flash_pages_used + 1)*flash_page_size + sizeof(mem_org_flash_page_header_t);
         }
         else
         {
-            uint32_t temp_add = data_address;
-            uint32_t temp = 0;
+            uint32_t temp_add = header_address;
+            mem_org_flash_page_header_t header;
+            memset(&header, 0, sizeof(header));
+
             RTCTimeout(NRF_RTC1, RTC_S_TO_TICKS(3), &timeoutId);
+
             do
             {
+                // Get the page header
 #ifndef EXT_FLASH_AVAILABLE
                 memcpy(&temp, temp_add + 4, sizeof(uint32_t));
 #else
-                ExtFlashReadPage(temp_add+4, &temp, sizeof(uint32_t));
+                ExtFlashReadPage(temp_add, &header, sizeof(header));
 #endif
-                if(temp == 0xFFFFFFFF)
+                // Find the first page with no entry number in the header
+                if(header.entry_number == 0xFFFF)
                 {
-                    mem_org_next_free_data_sample_address = data_address;
+                    mem_org_next_free_data_sample_address = header_address + sizeof(mem_org_flash_page_header_t);
                     RTCClearTimeout(NRF_RTC1, timeoutId);
 #ifdef EXT_FLASH_AVAILABLE
-        ExtFlashTurnOff();
+                    ExtFlashTurnOff();
 #endif
-                    return NRF_SUCCESS;
+                    return E_OP_SUCCESS;
                 }
                 else
                     temp_add += flash_page_size;
             }while(!rtcTimeoutArray[timeoutId].timeoutTriggeredFlag);
         }
     }
+
     RTCClearTimeout(NRF_RTC1, timeoutId);
 #ifdef EXT_FLASH_AVAILABLE
     ExtFlashTurnOff();
 #endif
-    return NRF_ERROR_INTERNAL;
+    return E_TIMEOUT;
 }
 
 /**
  *  \brief This function initializes important pointers for the  memory organization module. It should be called t the beginning of the program
  *
- *  \return NRF_SUCCESS - everything went fine
- *          NRF_ERROR_INTERNAL - timeout occured
+ *  \return E_OP_SUCCESS - everything went fine
+ *          E_OP_SUCCESS - timeout occured
  */
-uint32_t Mem_Org_Init()
+mem_org_error_code_e Mem_Org_Init()
 {
-    uint32_t err_code = 0;
+    mem_org_error_code_e err_code = 0;
     err_code = Mem_Org_Key_Find_First_Free();
-    if(err_code == NRF_SUCCESS)
+    if(err_code == E_OP_SUCCESS)
     {
         err_code = Mem_Org_Track_Address_Find_First_Free();
-        return NRF_SUCCESS;
+        return err_code;
     }
 
-    return NRF_ERROR_INTERNAL;
+    return E_TIMEOUT;
 
 }
 
@@ -220,14 +230,14 @@ uint32_t Mem_Org_Init()
  * \param address_to_data - address where the data will be stored
  * \param track_number - the track number which will describe the data encoded by the key
  *
- * \return  NRF_SUCCESS - everything went fine
- *          NRF_ERROR_INTERNAL - the key couldn't been stored for three times
+ * \return  E_OP_SUCCESS - everything went fine
+ *          E_TIMEOUT - the key couldn't been stored for three times
  */
-uint32_t Mem_Org_Store_Key(uint32_t address_to_data, uint16_t track_number)
+mem_org_error_code_e Mem_Org_Store_Key(uint32_t address_to_data, uint16_t track_number)
 {
-    uint32_t key = 0x80000000;
-    uint32_t err_code = 0;
+    uint32_t key = MEM_ORG_KEY_NOT_INITIALIZED;
     uint8_t safety_counter = 0;
+    mem_org_error_code_e err_code = 0;
 
     /// Set the address
     key |= (address_to_data - MEM_ORG_DATA_AREA_START_ADDRESS) >> MEM_ORG_KEY_ADD_SHIFT;
@@ -269,23 +279,23 @@ uint32_t Mem_Org_Store_Key(uint32_t address_to_data, uint16_t track_number)
             if(err_code == NRF_SUCCESS)
             {
                 /// Increase the pointer to the next free address
-                mem_org_next_free_key_address += 4;
+                mem_org_next_free_key_address += sizeof(mem_org_key_t);
                 /// If we get to the next page start then set the pointer to the first address after the header
-                if(mem_org_next_free_key_address % flash_page_size == 0)
-                    mem_org_next_free_key_address += sizeof(mem_org_flash_page_header_t);
-                return NRF_SUCCESS;
+//                if(mem_org_next_free_key_address % flash_page_size == 0)
+//                    mem_org_next_free_key_address += sizeof(mem_org_flash_page_header_t);
+                return E_OP_SUCCESS;
             }
 #endif
         }
         else
         {
             /// Increase the pointer to the next free address
-            mem_org_next_free_key_address += 4;
+            mem_org_next_free_key_address += sizeof(mem_org_key_t);;
             continue;
         }
     }while(++safety_counter < MAX_FLASH_OPERATION_ERROR_COUNTER);
 
-    return NRF_ERROR_INTERNAL;
+    return E_TIMEOUT;
 }
 
 /**
@@ -297,14 +307,16 @@ uint32_t Mem_Org_Store_Key(uint32_t address_to_data, uint16_t track_number)
  * \return  NRF_SUCCESS - key was found
  *          NRF_ERROR_INVALID - timeout occured
  */
-uint32_t Mem_Org_Find_Key(uint16_t track_number, uint32_t* key_buf)
+mem_org_key_t Mem_Org_Find_Key(uint16_t track_number, uint32_t* key_buf)
 {
+    // Page and key indexes are counted from 0
     uint8_t page_number = (track_number - 1) / MEM_ORG_KEY_AREA_KEYS_ON_PAGE;
     uint8_t key_on_page = (track_number - 1) % MEM_ORG_KEY_AREA_KEYS_ON_PAGE;
 
     uint32_t key = 0;
     uint16_t key_index = 0;
     uint8_t  timeoutId = 0;
+
 #ifdef EXT_FLASH_AVAILABLE
     ExtFlashTurnOn(EXT_FLASH_READ_OP);
 #endif
@@ -315,18 +327,19 @@ uint32_t Mem_Org_Find_Key(uint16_t track_number, uint32_t* key_buf)
 #ifndef EXT_FLASH_AVAILABLE
         uint16_t flash_page_size = INTERNAL_FLASH_PAGE_SIZE;
         /// Get the key
-        memcpy(&key, MEM_ORG_KEY_AREA_START_ADDRESS + page_number*INTERNAL_FLASH_PAGE_SIZE + sizeof(mem_org_flash_page_header_t) + key_on_page*sizeof(uint32_t), sizeof(uint32_t));
+        memcpy(&key, MEM_ORG_KEY_AREA_START_ADDRESS + page_number*INTERNAL_FLASH_PAGE_SIZE + key_on_page*sizeof(mem_org_key_t), sizeof(uint32_t));
 #else
         uint16_t flash_page_size = EXT_FLASH_PAGE_SIZE;
-        uint32_t add = MEM_ORG_KEY_AREA_START_ADDRESS + page_number*flash_page_size + sizeof(mem_org_flash_page_header_t) + key_on_page*sizeof(uint32_t);
-        ExtFlashReadPage(add, &key, sizeof(uint32_t));
+        uint32_t address = MEM_ORG_KEY_AREA_START_ADDRESS + page_number*flash_page_size + key_on_page*sizeof(mem_org_key_t);
+        ExtFlashReadPage(address, &key, sizeof(uint32_t));
 #endif
         if(key == 0xFFFFFFFF)
         {
 #ifdef EXT_FLASH_AVAILABLE
             ExtFlashTurnOff();
 #endif
-            return NRF_ERROR_NOT_FOUND;
+            RTCClearTimeout(NRF_RTC1, timeoutId);
+            return E_NOT_FOUND;
         }
 
         key_index = ((key >> MEM_ORG_KEY_TRACK_NUMBER_SHIFT) & 0x7FFF);
@@ -337,18 +350,17 @@ uint32_t Mem_Org_Find_Key(uint16_t track_number, uint32_t* key_buf)
             if((key & 0x80000000) == 0)
             {
                 *key_buf = key;
-                RTCClearTimeout(NRF_RTC1, timeoutId);
 #ifdef EXT_FLASH_AVAILABLE
                 ExtFlashTurnOff();
 #endif
-                return NRF_SUCCESS;
+                RTCClearTimeout(NRF_RTC1, timeoutId);
+                return E_OP_SUCCESS;
             }
             else
             {
                 key_on_page++;
                 continue;
             }
-
         }
         else
             if(key_index > track_number)
@@ -366,7 +378,7 @@ uint32_t Mem_Org_Find_Key(uint16_t track_number, uint32_t* key_buf)
 #ifdef EXT_FLASH_AVAILABLE
     ExtFlashTurnOff();
 #endif
-    return NRF_ERROR_INTERNAL;
+    return E_TIMEOUT;
 }
 
 /**
@@ -381,7 +393,7 @@ uint32_t Mem_Org_Store_Sample(mem_org_gps_sample_t* sample)
 {
     uint8_t err_code = 0;
     mem_org_flash_page_header_t header;
-    memset(&header, 0 sizeof(header));
+    memset(&header, 0, sizeof(header));
 
 #ifndef EXT_FLASH_AVAILABLE
     uint16_t flash_page_size = INTERNAL_FLASH_PAGE_SIZE
@@ -405,11 +417,7 @@ uint32_t Mem_Org_Store_Sample(mem_org_gps_sample_t* sample)
     }
 
     uint32_t flash_page_address = mem_org_next_free_data_sample_address - (mem_org_next_free_data_sample_address % EXT_FLASH_PAGE_SIZE);
-    // Read the header of the page
-    ExtFlashReadPage(flash_page_address, &header, sizeof(header));
-    uint32_t sampleCountBit = (1 << ((mem_org_next_free_data_sample_address % EXT_FLASH_PAGE_SIZE)
-                                      - sizeof(mem_org_flash_page_header_t)/sizeof(mem_org_gps_sample_t) - 1));
-    header.available_samples_count &= ~sampleCountBit;
+
 
 #ifndef EXT_FLASH_AVAILABLE
     for(uint8_t i=0; i < sizeof(mem_org_gps_sample_t)/4; i+=1)
@@ -430,13 +438,33 @@ uint32_t Mem_Org_Store_Sample(mem_org_gps_sample_t* sample)
                                                                    &sample,
                                                                    sizeof(sample));
 
+        // Read the header of the page
+        ExtFlashReadPage(flash_page_address, &header, sizeof(header));
+        uint8_t  sampleAddressOnPage = mem_org_next_free_data_sample_address % EXT_FLASH_PAGE_SIZE;
+        uint8_t  sampleIndexOnPage = (sampleAddressOnPage - sizeof(mem_org_flash_page_header_t))/sizeof(mem_org_gps_sample_t);
+        uint32_t sampleCountBit = (1 << (sampleIndexOnPage - 1));
+        header.available_samples_count &= ~sampleCountBit;
+
+        err_code = ExtFlashProgramPageThroughBufferWithoutPreerase(flash_page_address + 8, &header.available_samples_count, sizeof(header.available_samples_count));
+
         mem_org_next_free_data_sample_address += sizeof(sample);
+
+        uint32_t next_flash_page_address = (flash_page_address + EXT_FLASH_PAGE_SIZE);
+
         /// If the sample would be stored in between flash pages than go to the next flash page
-        if(mem_org_next_free_data_sample_address + sizeof(sample) >= (mem_org_next_free_data_sample_address - (mem_org_next_free_data_sample_address % flash_page_size) + flash_page_size))
-            mem_org_next_free_data_sample_address = (mem_org_next_free_data_sample_address - (mem_org_next_free_data_sample_address % flash_page_size) + flash_page_size) + sizeof(mem_org_flash_page_header_t);
+        if(mem_org_next_free_data_sample_address + sizeof(sample) >= next_flash_page_address)
+        {
+            // Store the header on the new page
+            memset(&header, 0, sizeof(header));
+            header.entry_number = mem_org_tracks_stored;
+            ExtFlashProgramPageThroughBufferWithoutPreerase(next_flash_page_address, &header.entry_number, sizeof(header.entry_number));
+
+            // Switch the sample address
+            mem_org_next_free_data_sample_address = next_flash_page_address + sizeof(mem_org_flash_page_header_t);
+        }
 
 #endif
-    mem_org_track_size += sizeof(sample);
+    mem_org_track_sample_count++;
 
 #ifdef EXT_FLASH_AVAILABLE
     ExtFlashTurnOff();
@@ -478,7 +506,7 @@ uint32_t Mem_Org_Track_Stop_Storage()
     /// Store the data size
     mem_org_flash_page_header_t header;
     header.entry_number = mem_org_tracks_stored;
-    header.entry_size_in_bytes = mem_org_track_size;
+    header.available_samples_count = mem_org_track_sample_count;
 #ifndef EXT_FLASH_AVAILABLE
     uint16_t flash_page_size = INTERNAL_FLASH_PAGE_SIZE;
     err_code = Int_Flash_Store_Dword(*((uint32_t*)&header), (uint32_t*)track_start_address);
@@ -492,7 +520,7 @@ uint32_t Mem_Org_Track_Stop_Storage()
     /// Set the addres to the next page
     mem_org_next_free_data_sample_address = (mem_org_next_free_data_sample_address - (mem_org_next_free_data_sample_address % flash_page_size)) + flash_page_size;
     /// Clear the track size variable
-    mem_org_track_size = 0;
+    mem_org_track_sample_count = 0;
     return NRF_SUCCESS;
 }
 
@@ -533,90 +561,90 @@ KEY_AREA_START_ADDRESS; i<MEM_ORG_KEY_AREA_END_ADDRESS; i += INTERNAL_FLASH_PAGE
  *              NRF_ERROR_NOT_FOUNT - an empty key was reached
  *              NRF_ERROR_INTERNAL - timeout was triggered
  */
-uint32_t Mem_Org_List_Tracks_Through_BLE()
-{
-
-    uint32_t temp_address = MEM_ORG_KEY_AREA_START_ADDRESS;
-    uint32_t temp_key = 0;
-    uint16_t temp_track_number = 0;
-    uint8_t  data_buffer[5];
-    uint32_t encoded_address = 0;
-    uint8_t timeoutId = 0;
-
-    RTCTimeout(NRF_RTC1, RTC_S_TO_TICKS(2), &timeoutId);
-
-#ifdef EXT_FLASH_AVAILABLE
-    uint16_t flash_page_size = EXT_FLASH_PAGE_SIZE;
-    ExtFlashTurnOn(EXT_FLASH_READ_OP);
-#else
-    uint16_t flash_page_size = INTERNAL_FLASH_PAGE_SIZE;
-#endif
-
-
-    /// Send the packet informing how many available tracks there is
-    Ble_Uart_Data_Send(BLE_GET_AVAILABLE_TRACKS, &mem_org_tracks_stored, sizeof(mem_org_tracks_stored), false);
-    Ble_Uart_Wait_For_Transmission_End();
-    do
-    {
-        if(temp_address % flash_page_size == 0)
-            temp_address += sizeof(mem_org_flash_page_header_t);
-#ifndef EXT_FLASH_AVAILABLE
-        memcpy(&temp_key, (uint32_t*)temp_address, sizeof(uint32_t));
-#else
-        ExtFlashReadPage(temp_address, &temp_key, sizeof(uint32_t));
-#endif
-
-        if(temp_key != 0xFFFFFFFF)
-        {
-            temp_track_number = Mem_Org_Get_Key_Encoded_Track_Number(temp_key);
-            if(temp_track_number <= mem_org_tracks_stored)
-            {
-                /// Put the track number in the buffer
-                memcpy(&data_buffer[0], &temp_track_number, sizeof(temp_track_number));
-                /// Get the track timestamp
-                encoded_address = Mem_Org_Get_Key_Encoded_Address(temp_key);
-#ifndef EXT_FLASH_AVAILABLE
-                /// Put the timestamp in the buffer
-                memcpy(&data_buffer[1], (uint32_t*)(encoded_address + sizeof(mem_org_flash_page_header_t)), sizeof(uint32_t));
-#else
-                ExtFlashReadPage(encoded_address + sizeof(mem_org_flash_page_header_t), &data_buffer[1], sizeof(uint32_t));
-#endif
-                /// Send the track number and track timestamp
-                Ble_Uart_Data_Send(BLE_GET_AVAILABLE_TRACKS, data_buffer, sizeof(data_buffer), false);
-                Ble_Uart_Wait_For_Transmission_End();
-                /// Increase the address
-                temp_address += 4;
-
-            }
-            else
-            {
-                RTCClearTimeout(NRF_RTC1, timeoutId);
-
-            #ifdef EXT_FLASH_AVAILABLE
-                ExtFlashTurnOff();
-            #endif
-                return NRF_SUCCESS;
-            }
-        }
-        else
-        {
-            RTCClearTimeout(NRF_RTC1, timeoutId);
-
-        #ifdef EXT_FLASH_AVAILABLE
-            ExtFlashTurnOff();
-        #endif
-            return NRF_ERROR_NOT_FOUND;
-        }
-    }while(!rtcTimeoutArray[timeoutId].timeoutTriggeredFlag);
-
-    RTCClearTimeout(NRF_RTC1, timeoutId);
-
-#ifdef EXT_FLASH_AVAILABLE
-    ExtFlashTurnOff();
-#endif
-
-    return NRF_ERROR_INTERNAL;
-}
+//uint32_t Mem_Org_List_Tracks_Through_BLE()
+//{
+//
+//    uint32_t temp_address = MEM_ORG_KEY_AREA_START_ADDRESS;
+//    uint32_t temp_key = 0;
+//    uint16_t temp_track_number = 0;
+//    uint8_t  data_buffer[5];
+//    uint32_t encoded_address = 0;
+//    uint8_t timeoutId = 0;
+//
+//    RTCTimeout(NRF_RTC1, RTC_S_TO_TICKS(2), &timeoutId);
+//
+//#ifdef EXT_FLASH_AVAILABLE
+//    uint16_t flash_page_size = EXT_FLASH_PAGE_SIZE;
+//    ExtFlashTurnOn(EXT_FLASH_READ_OP);
+//#else
+//    uint16_t flash_page_size = INTERNAL_FLASH_PAGE_SIZE;
+//#endif
+//
+//
+//    /// Send the packet informing how many available tracks there is
+//    Ble_Uart_Data_Send(BLE_GET_AVAILABLE_TRACKS, &mem_org_tracks_stored, sizeof(mem_org_tracks_stored), false);
+//    Ble_Uart_Wait_For_Transmission_End();
+//    do
+//    {
+//        if(temp_address % flash_page_size == 0)
+//            temp_address += sizeof(mem_org_flash_page_header_t);
+//#ifndef EXT_FLASH_AVAILABLE
+//        memcpy(&temp_key, (uint32_t*)temp_address, sizeof(uint32_t));
+//#else
+//        ExtFlashReadPage(temp_address, &temp_key, sizeof(uint32_t));
+//#endif
+//
+//        if(temp_key != 0xFFFFFFFF)
+//        {
+//            temp_track_number = Mem_Org_Get_Key_Encoded_Track_Number(temp_key);
+//            if(temp_track_number <= mem_org_tracks_stored)
+//            {
+//                /// Put the track number in the buffer
+//                memcpy(&data_buffer[0], &temp_track_number, sizeof(temp_track_number));
+//                /// Get the track timestamp
+//                encoded_address = Mem_Org_Get_Key_Encoded_Address(temp_key);
+//#ifndef EXT_FLASH_AVAILABLE
+//                /// Put the timestamp in the buffer
+//                memcpy(&data_buffer[1], (uint32_t*)(encoded_address + sizeof(mem_org_flash_page_header_t)), sizeof(uint32_t));
+//#else
+//                ExtFlashReadPage(encoded_address + sizeof(mem_org_flash_page_header_t), &data_buffer[1], sizeof(uint32_t));
+//#endif
+//                /// Send the track number and track timestamp
+//                Ble_Uart_Data_Send(BLE_GET_AVAILABLE_TRACKS, data_buffer, sizeof(data_buffer), false);
+//                Ble_Uart_Wait_For_Transmission_End();
+//                /// Increase the address
+//                temp_address += 4;
+//
+//            }
+//            else
+//            {
+//                RTCClearTimeout(NRF_RTC1, timeoutId);
+//
+//            #ifdef EXT_FLASH_AVAILABLE
+//                ExtFlashTurnOff();
+//            #endif
+//                return NRF_SUCCESS;
+//            }
+//        }
+//        else
+//        {
+//            RTCClearTimeout(NRF_RTC1, timeoutId);
+//
+//        #ifdef EXT_FLASH_AVAILABLE
+//            ExtFlashTurnOff();
+//        #endif
+//            return NRF_ERROR_NOT_FOUND;
+//        }
+//    }while(!rtcTimeoutArray[timeoutId].timeoutTriggeredFlag);
+//
+//    RTCClearTimeout(NRF_RTC1, timeoutId);
+//
+//#ifdef EXT_FLASH_AVAILABLE
+//    ExtFlashTurnOff();
+//#endif
+//
+//    return NRF_ERROR_INTERNAL;
+//}
 
 
 /**
@@ -630,87 +658,87 @@ uint32_t Mem_Org_List_Tracks_Through_BLE()
  *          ERROR_TIMEOUT - the timeouut error occured
  *          NRF_ERROR_NO_MEM - end of memory has been reached
  */
-uint32_t Mem_Org_Send_Track_Via_BLE(uint32_t key)
-{
-    uint32_t address = Mem_Org_Get_Key_Encoded_Address(key);
-    uint32_t byte_counter = 0;
-    uint32_t bytes_to_send_cnt = 0;
-    mem_org_gps_sample_t sample = {0};
-    uint8_t timeoutId = 0;
-
-#ifdef EXT_FLASH_AVAILABLE
-    ExtFlashTurnOn(EXT_FLASH_READ_OP);
-#endif
-
-#ifndef EXT_FLASH_AVAILABLE
-    uint16_t flash_page_size = INTERNAL_FLASH_PAGE_SIZE;
-    /// Get the number of data bytes in the track
-    memcpy(&bytes_to_send_cnt, address + 2, sizeof(uint16_t));
-#else
-    uint16_t flash_page_size = EXT_FLASH_PAGE_SIZE;
-    ExtFlashReadPage(address + 2, &bytes_to_send_cnt, sizeof(uint16_t));
-#endif
-
-
-    RTCTimeout(NRF_RTC1, RTC_S_TO_TICKS(5) &timeoutId);
-
-    /// Send the number of bytes in the track
-    Ble_Uart_Data_Send(BLE_GET_HISTORY_TRACK, &bytes_to_send_cnt, sizeof(bytes_to_send_cnt), false);
-    Ble_Uart_Wait_For_Transmission_End();
-    do
-    {
-        /// Check if we are not out of the data memory
-        if(address + sizeof(mem_org_gps_sample_t) >= MEM_ORG_DATA_AREA_END_ADDRESS)
-            return NRF_ERROR_NO_MEM;
-
-        /// If we are trying to read the sample from in between flash pages
-        if(address + sizeof(mem_org_gps_sample_t) >= address - (address % flash_page_size) + flash_page_size)
-        {
-            address = address - (address % flash_page_size) + flash_page_size;
-        }
-
-        /// If it's the flash page beginning, set the address just after the flash page header
-        if(address % flash_page_size == 0)
-        {
-            address += sizeof(mem_org_flash_page_header_t);
-        }
-
-#ifndef EXT_FLASH_AVAILABLE
-        /// Fill in the sample
-        memcpy(&sample.timestamp, address, sizeof(sample));
-#else
-        ExtFlashReadPage(address, &sample.timestamp, sizeof(sample));
-#endif
-        /// Send the first sample part - timestamp and longtitude
-        Ble_Uart_Data_Send(BLE_GET_HISTORY_TRACK, &sample, sizeof(sample.timestamp) + sizeof(sample.longtitude), false);
-        /// Wait till the packet is sent
-        Ble_Uart_Wait_For_Transmission_End();
-        /// Send next packet with latitude
-        Ble_Uart_Data_Send(BLE_GET_HISTORY_TRACK, &sample.latitude, sizeof(sample.latitude), false);
-        /// Wait till the packet is sent
-        Ble_Uart_Wait_For_Transmission_End();
-
-        /// Increase the send bytes counter
-        byte_counter += sizeof(sample);
-        address += sizeof(sample);
-
-    }while((byte_counter < bytes_to_send_cnt) && !rtcTimeoutArray[timeoutId].timeoutTriggeredFlag);
-
-    if(rtcTimeoutArray[timeoutId].timeoutTriggeredFlag)
-    {
-        RTCClearTimeout(NRF_RTC1, timeoutId);
-
-    #ifdef EXT_FLASH_AVAILABLE
-        ExtFlashTurnOff();
-    #endif
-        return ERROR_TIMEOUT;
-    }
-
-
-#ifdef EXT_FLASH_AVAILABLE
-    ExtFlashTurnOff();
-#endif
-    return NRF_SUCCESS;
-
-}
+//uint32_t Mem_Org_Send_Track_Via_BLE(uint32_t key)
+//{
+//    uint32_t address = Mem_Org_Get_Key_Encoded_Address(key);
+//    uint32_t byte_counter = 0;
+//    uint32_t bytes_to_send_cnt = 0;
+//    mem_org_gps_sample_t sample = {0};
+//    uint8_t timeoutId = 0;
+//
+//#ifdef EXT_FLASH_AVAILABLE
+//    ExtFlashTurnOn(EXT_FLASH_READ_OP);
+//#endif
+//
+//#ifndef EXT_FLASH_AVAILABLE
+//    uint16_t flash_page_size = INTERNAL_FLASH_PAGE_SIZE;
+//    /// Get the number of data bytes in the track
+//    memcpy(&bytes_to_send_cnt, address + 2, sizeof(uint16_t));
+//#else
+//    uint16_t flash_page_size = EXT_FLASH_PAGE_SIZE;
+//    ExtFlashReadPage(address + 2, &bytes_to_send_cnt, sizeof(uint16_t));
+//#endif
+//
+//
+//    RTCTimeout(NRF_RTC1, RTC_S_TO_TICKS(5) &timeoutId);
+//
+//    /// Send the number of bytes in the track
+//    Ble_Uart_Data_Send(BLE_GET_HISTORY_TRACK, &bytes_to_send_cnt, sizeof(bytes_to_send_cnt), false);
+//    Ble_Uart_Wait_For_Transmission_End();
+//    do
+//    {
+//        /// Check if we are not out of the data memory
+//        if(address + sizeof(mem_org_gps_sample_t) >= MEM_ORG_DATA_AREA_END_ADDRESS)
+//            return NRF_ERROR_NO_MEM;
+//
+//        /// If we are trying to read the sample from in between flash pages
+//        if(address + sizeof(mem_org_gps_sample_t) >= address - (address % flash_page_size) + flash_page_size)
+//        {
+//            address = address - (address % flash_page_size) + flash_page_size;
+//        }
+//
+//        /// If it's the flash page beginning, set the address just after the flash page header
+//        if(address % flash_page_size == 0)
+//        {
+//            address += sizeof(mem_org_flash_page_header_t);
+//        }
+//
+//#ifndef EXT_FLASH_AVAILABLE
+//        /// Fill in the sample
+//        memcpy(&sample.timestamp, address, sizeof(sample));
+//#else
+//        ExtFlashReadPage(address, &sample.timestamp, sizeof(sample));
+//#endif
+//        /// Send the first sample part - timestamp and longtitude
+//        Ble_Uart_Data_Send(BLE_GET_HISTORY_TRACK, &sample, sizeof(sample.timestamp) + sizeof(sample.longtitude), false);
+//        /// Wait till the packet is sent
+//        Ble_Uart_Wait_For_Transmission_End();
+//        /// Send next packet with latitude
+//        Ble_Uart_Data_Send(BLE_GET_HISTORY_TRACK, &sample.latitude, sizeof(sample.latitude), false);
+//        /// Wait till the packet is sent
+//        Ble_Uart_Wait_For_Transmission_End();
+//
+//        /// Increase the send bytes counter
+//        byte_counter += sizeof(sample);
+//        address += sizeof(sample);
+//
+//    }while((byte_counter < bytes_to_send_cnt) && !rtcTimeoutArray[timeoutId].timeoutTriggeredFlag);
+//
+//    if(rtcTimeoutArray[timeoutId].timeoutTriggeredFlag)
+//    {
+//        RTCClearTimeout(NRF_RTC1, timeoutId);
+//
+//    #ifdef EXT_FLASH_AVAILABLE
+//        ExtFlashTurnOff();
+//    #endif
+//        return ERROR_TIMEOUT;
+//    }
+//
+//
+//#ifdef EXT_FLASH_AVAILABLE
+//    ExtFlashTurnOff();
+//#endif
+//    return NRF_SUCCESS;
+//
+//}
 
