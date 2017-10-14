@@ -18,20 +18,22 @@
 #define RTC0_FREQUENCY   			(32768/(RTC0_PRESCALER + 1))
 #define RTC0_MS_TO_TICKS(time_ms)	(time_ms*RTC0_FREQUENCY/1000)
 #define RTC0_US_TO_TICKS(time_us)	(time_us*RTC0_FREQUENCY/1000000)
+#define RTC0_S_TO_TICKS(time_s)      (time_s*RTC0_FREQUENCY)
 
 #define RTC1_PRESCALER				0
 #define RTC1_FREQUENCY   			(32768/(RTC1_PRESCALER + 1))
 #define RTC1_MS_TO_TICKS(time_ms)	(time_ms*RTC1_FREQUENCY/1000)
 #define RTC1_US_TO_TICKS(time_us)	(time_us*RTC1_FREQUENCY/1000000)
+#define RTC1_S_TO_TICKS(time_s)     (time_s*RTC1_FREQUENCY)
+
 
 #define RTC2_PRESCALER				0
 #define RTC2_FREQUENCY   			(32768/(RTC2_PRESCALER + 1))
 #define RTC2_MS_TO_TICKS(time_ms)	(time_ms*RTC2_FREQUENCY/1000)
 #define RTC2_US_TO_TICKS(time_us)	(time_us*RTC2_FREQUENCY/1000000)
+#define RTC2_S_TO_TICKS(time_s)     (time_s*RTC2_FREQUENCY)
 
 #define RTC_TIMEOUT_ARRAY_SIZE      3
-
-extern volatile rtc_timeout_t rtcTimeoutArray[RTC_TIMEOUT_ARRAY_SIZE];
 
 typedef enum
 {
@@ -46,6 +48,8 @@ typedef struct
 	bool activeFlag;
 	bool timeoutTriggeredFlag;
 }rtc_timeout_t;
+
+extern volatile rtc_timeout_t rtcTimeoutArray[RTC_TIMEOUT_ARRAY_SIZE];
 
 RTC_Error_e RTCInit(NRF_RTC_Type* RTC);
 RTC_Error_e RTCEnableComparingReg(NRF_RTC_Type* RTC, uint8_t registerNumber);

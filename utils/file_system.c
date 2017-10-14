@@ -15,6 +15,8 @@
 #include <string.h>
 #include "external_flash_driver.h"
 #include <limits.h>
+#include "ble_uart_service.h"
+#include "ble_common.h"
 
 static uint32_t         mem_org_next_free_key_address = MEM_ORG_KEY_AREA_START_ADDRESS;
 static uint32_t         mem_org_next_free_data_sample_address = MEM_ORG_DATA_AREA_START_ADDRESS;
@@ -111,7 +113,7 @@ static mem_org_error_code_e Mem_Org_Key_Find_First_Free()
     uint32_t ret_val = 0;
     for(uint32_t i = MEM_ORG_KEY_AREA_START_ADDRESS; i< MEM_ORG_KEY_AREA_END_ADDRESS; i += 1024)
     {
-        ret_val = Mem_Org_Key_Find_First_Free_On_Page(i, &mem_org_next_free_key_address);
+        ret_val = MemOrgKeyFindFirstFreeOnPage(i, &mem_org_next_free_key_address);
         if(ret_val == E_OP_SUCCESS)
         {
             return E_OP_SUCCESS;
@@ -171,7 +173,7 @@ static mem_org_error_code_e Mem_Org_Track_Address_Find_First_Free()
             mem_org_flash_page_header_t header;
             memset(&header, 0, sizeof(header));
 
-            RTCTimeout(NRF_RTC1, RTC_S_TO_TICKS(3), &timeoutId);
+            RTCTimeout(NRF_RTC1, RTC1_S_TO_TICKS(3), &timeoutId);
 
             do
             {
@@ -321,7 +323,7 @@ mem_org_key_t Mem_Org_Find_Key(uint16_t track_number, uint32_t* key_buf)
     ExtFlashTurnOn(EXT_FLASH_READ_OP);
 #endif
 
-    RTCTimeout(NRF_RTC1, RTC_S_TO_TICKS(2), &timeoutId);
+    RTCTimeout(NRF_RTC1, RTC1_S_TO_TICKS(2), &timeoutId);
     do
     {
 #ifndef EXT_FLASH_AVAILABLE
@@ -557,94 +559,101 @@ KEY_AREA_START_ADDRESS; i<MEM_ORG_KEY_AREA_END_ADDRESS; i += INTERNAL_FLASH_PAGE
  * \brief This function sends via BLE list of all available tracks with with their timestamp. It sends first the total number of available tracks. Then it sends track number and track start timestamp in one packet.
  *  Each packet corresponds to the single track entry.
  *
- *  \return     NRF_SUCCESS - no error occurred
+ *  \return     E_OP_SUCCESS - no error occurred
  *              NRF_ERROR_NOT_FOUNT - an empty key was reached
  *              NRF_ERROR_INTERNAL - timeout was triggered
  */
-//uint32_t Mem_Org_List_Tracks_Through_BLE()
-//{
-//
-//    uint32_t temp_address = MEM_ORG_KEY_AREA_START_ADDRESS;
-//    uint32_t temp_key = 0;
-//    uint16_t temp_track_number = 0;
-//    uint8_t  data_buffer[5];
-//    uint32_t encoded_address = 0;
-//    uint8_t timeoutId = 0;
-//
-//    RTCTimeout(NRF_RTC1, RTC_S_TO_TICKS(2), &timeoutId);
-//
-//#ifdef EXT_FLASH_AVAILABLE
-//    uint16_t flash_page_size = EXT_FLASH_PAGE_SIZE;
-//    ExtFlashTurnOn(EXT_FLASH_READ_OP);
-//#else
-//    uint16_t flash_page_size = INTERNAL_FLASH_PAGE_SIZE;
-//#endif
-//
-//
-//    /// Send the packet informing how many available tracks there is
-//    Ble_Uart_Data_Send(BLE_GET_AVAILABLE_TRACKS, &mem_org_tracks_stored, sizeof(mem_org_tracks_stored), false);
-//    Ble_Uart_Wait_For_Transmission_End();
-//    do
-//    {
-//        if(temp_address % flash_page_size == 0)
-//            temp_address += sizeof(mem_org_flash_page_header_t);
-//#ifndef EXT_FLASH_AVAILABLE
-//        memcpy(&temp_key, (uint32_t*)temp_address, sizeof(uint32_t));
-//#else
-//        ExtFlashReadPage(temp_address, &temp_key, sizeof(uint32_t));
-//#endif
-//
-//        if(temp_key != 0xFFFFFFFF)
-//        {
-//            temp_track_number = Mem_Org_Get_Key_Encoded_Track_Number(temp_key);
-//            if(temp_track_number <= mem_org_tracks_stored)
-//            {
-//                /// Put the track number in the buffer
-//                memcpy(&data_buffer[0], &temp_track_number, sizeof(temp_track_number));
-//                /// Get the track timestamp
-//                encoded_address = Mem_Org_Get_Key_Encoded_Address(temp_key);
-//#ifndef EXT_FLASH_AVAILABLE
-//                /// Put the timestamp in the buffer
-//                memcpy(&data_buffer[1], (uint32_t*)(encoded_address + sizeof(mem_org_flash_page_header_t)), sizeof(uint32_t));
-//#else
-//                ExtFlashReadPage(encoded_address + sizeof(mem_org_flash_page_header_t), &data_buffer[1], sizeof(uint32_t));
-//#endif
-//                /// Send the track number and track timestamp
-//                Ble_Uart_Data_Send(BLE_GET_AVAILABLE_TRACKS, data_buffer, sizeof(data_buffer), false);
-//                Ble_Uart_Wait_For_Transmission_End();
-//                /// Increase the address
-//                temp_address += 4;
-//
-//            }
-//            else
-//            {
-//                RTCClearTimeout(NRF_RTC1, timeoutId);
-//
-//            #ifdef EXT_FLASH_AVAILABLE
-//                ExtFlashTurnOff();
-//            #endif
-//                return NRF_SUCCESS;
-//            }
-//        }
-//        else
-//        {
-//            RTCClearTimeout(NRF_RTC1, timeoutId);
-//
-//        #ifdef EXT_FLASH_AVAILABLE
-//            ExtFlashTurnOff();
-//        #endif
-//            return NRF_ERROR_NOT_FOUND;
-//        }
-//    }while(!rtcTimeoutArray[timeoutId].timeoutTriggeredFlag);
-//
-//    RTCClearTimeout(NRF_RTC1, timeoutId);
-//
-//#ifdef EXT_FLASH_AVAILABLE
-//    ExtFlashTurnOff();
-//#endif
-//
-//    return NRF_ERROR_INTERNAL;
-//}
+mem_org_error_code_e Mem_Org_List_Tracks_Through_BLE()
+{
+
+    uint32_t temp_address = MEM_ORG_KEY_AREA_START_ADDRESS;
+    uint32_t temp_key = 0;
+    uint16_t temp_track_number = 0;
+    mem_org_flash_page_header_t  track_header;
+    uint32_t encoded_address = 0;
+    uint8_t timeoutId = 0;
+    uint8_t packet_buffer[20];
+
+    RTCTimeout(NRF_RTC1, RTC1_S_TO_TICKS(5), &timeoutId);
+
+#ifdef EXT_FLASH_AVAILABLE
+    uint16_t flash_page_size = EXT_FLASH_PAGE_SIZE;
+    ExtFlashTurnOn(EXT_FLASH_READ_OP);
+#else
+    uint16_t flash_page_size = INTERNAL_FLASH_PAGE_SIZE;
+#endif
+
+    /// Send the packet informing how many available tracks there is
+    BleUartDataIndicate(m_conn_handle_peripheral, E_BLE_UART_GET_AVAILABLE_TRACKS, &mem_org_tracks_stored, sizeof(mem_org_tracks_stored), false);
+    BleUartWaitForIndicateEnd();
+
+    do
+    {
+        if(temp_address == MEM_ORG_KEY_AREA_END_ADDRESS)
+        {
+            RTCClearTimeout(NRF_RTC1, timeoutId);
+
+        #ifdef EXT_FLASH_AVAILABLE
+            ExtFlashTurnOff();
+        #endif
+            return E_OP_SUCCESS;
+        }
+
+#ifndef EXT_FLASH_AVAILABLE
+        memcpy(&temp_key, (uint32_t*)temp_address, sizeof(mem_org_key_t));
+#else
+        ExtFlashReadPage(temp_address, &temp_key, sizeof(mem_org_key_t));
+#endif
+
+        if(temp_key != 0xFFFFFFFF)
+        {
+            temp_track_number = Mem_Org_Get_Key_Encoded_Track_Number(temp_key);
+            if(temp_track_number <= mem_org_tracks_stored)
+            {
+                /// Get the track timestamp
+                encoded_address = Mem_Org_Get_Key_Encoded_Address(temp_key);
+#ifndef EXT_FLASH_AVAILABLE
+                /// Put the timestamp in the buffer
+                memcpy(&data_buffer[1], (uint32_t*)(encoded_address + sizeof(mem_org_flash_page_header_t)), sizeof(uint32_t));
+#else
+                ExtFlashReadPage(encoded_address, &track_header, sizeof(track_header));
+#endif
+                /// Send the track number and track timestamp
+                BleUartDataIndicate(m_conn_handle_peripheral, E_BLE_UART_GET_AVAILABLE_TRACKS, &track_header, sizeof(track_header), false);
+                BleUartWaitForIndicateEnd();
+
+                /// Increase the address of key check
+                temp_address += sizeof(mem_org_key_t);
+            }
+            else
+            {
+                RTCClearTimeout(NRF_RTC1, timeoutId);
+
+            #ifdef EXT_FLASH_AVAILABLE
+                ExtFlashTurnOff();
+            #endif
+                return E_OP_SUCCESS;
+            }
+        }
+        else
+        {
+            RTCClearTimeout(NRF_RTC1, timeoutId);
+
+        #ifdef EXT_FLASH_AVAILABLE
+            ExtFlashTurnOff();
+        #endif
+            return E_NOT_FOUND;
+        }
+    }while(!rtcTimeoutArray[timeoutId].timeoutTriggeredFlag);
+
+    RTCClearTimeout(NRF_RTC1, timeoutId);
+
+#ifdef EXT_FLASH_AVAILABLE
+    ExtFlashTurnOff();
+#endif
+
+    return E_TIMEOUT;
+}
 
 
 /**
@@ -654,91 +663,89 @@ KEY_AREA_START_ADDRESS; i<MEM_ORG_KEY_AREA_END_ADDRESS; i += INTERNAL_FLASH_PAGE
  *
  * \param key - key which encodes the track
  *
- * \return  NRF_SUCCESS - everything went fine
- *          ERROR_TIMEOUT - the timeouut error occured
- *          NRF_ERROR_NO_MEM - end of memory has been reached
+ * \return  E_OP_SUCCESS - everything went fine
+ *          E_TIMEOUT - the timeouut error occured
+ *          E_NO_MEMORY - end of memory has been reached
  */
-//uint32_t Mem_Org_Send_Track_Via_BLE(uint32_t key)
-//{
-//    uint32_t address = Mem_Org_Get_Key_Encoded_Address(key);
-//    uint32_t byte_counter = 0;
-//    uint32_t bytes_to_send_cnt = 0;
-//    mem_org_gps_sample_t sample = {0};
-//    uint8_t timeoutId = 0;
-//
-//#ifdef EXT_FLASH_AVAILABLE
-//    ExtFlashTurnOn(EXT_FLASH_READ_OP);
-//#endif
-//
-//#ifndef EXT_FLASH_AVAILABLE
-//    uint16_t flash_page_size = INTERNAL_FLASH_PAGE_SIZE;
-//    /// Get the number of data bytes in the track
-//    memcpy(&bytes_to_send_cnt, address + 2, sizeof(uint16_t));
-//#else
-//    uint16_t flash_page_size = EXT_FLASH_PAGE_SIZE;
-//    ExtFlashReadPage(address + 2, &bytes_to_send_cnt, sizeof(uint16_t));
-//#endif
-//
-//
-//    RTCTimeout(NRF_RTC1, RTC_S_TO_TICKS(5) &timeoutId);
-//
-//    /// Send the number of bytes in the track
-//    Ble_Uart_Data_Send(BLE_GET_HISTORY_TRACK, &bytes_to_send_cnt, sizeof(bytes_to_send_cnt), false);
-//    Ble_Uart_Wait_For_Transmission_End();
-//    do
-//    {
-//        /// Check if we are not out of the data memory
-//        if(address + sizeof(mem_org_gps_sample_t) >= MEM_ORG_DATA_AREA_END_ADDRESS)
-//            return NRF_ERROR_NO_MEM;
-//
-//        /// If we are trying to read the sample from in between flash pages
-//        if(address + sizeof(mem_org_gps_sample_t) >= address - (address % flash_page_size) + flash_page_size)
-//        {
-//            address = address - (address % flash_page_size) + flash_page_size;
-//        }
-//
-//        /// If it's the flash page beginning, set the address just after the flash page header
-//        if(address % flash_page_size == 0)
-//        {
-//            address += sizeof(mem_org_flash_page_header_t);
-//        }
-//
-//#ifndef EXT_FLASH_AVAILABLE
-//        /// Fill in the sample
-//        memcpy(&sample.timestamp, address, sizeof(sample));
-//#else
-//        ExtFlashReadPage(address, &sample.timestamp, sizeof(sample));
-//#endif
-//        /// Send the first sample part - timestamp and longtitude
-//        Ble_Uart_Data_Send(BLE_GET_HISTORY_TRACK, &sample, sizeof(sample.timestamp) + sizeof(sample.longtitude), false);
-//        /// Wait till the packet is sent
-//        Ble_Uart_Wait_For_Transmission_End();
-//        /// Send next packet with latitude
-//        Ble_Uart_Data_Send(BLE_GET_HISTORY_TRACK, &sample.latitude, sizeof(sample.latitude), false);
-//        /// Wait till the packet is sent
-//        Ble_Uart_Wait_For_Transmission_End();
-//
-//        /// Increase the send bytes counter
-//        byte_counter += sizeof(sample);
-//        address += sizeof(sample);
-//
-//    }while((byte_counter < bytes_to_send_cnt) && !rtcTimeoutArray[timeoutId].timeoutTriggeredFlag);
-//
-//    if(rtcTimeoutArray[timeoutId].timeoutTriggeredFlag)
-//    {
-//        RTCClearTimeout(NRF_RTC1, timeoutId);
-//
-//    #ifdef EXT_FLASH_AVAILABLE
-//        ExtFlashTurnOff();
-//    #endif
-//        return ERROR_TIMEOUT;
-//    }
-//
-//
-//#ifdef EXT_FLASH_AVAILABLE
-//    ExtFlashTurnOff();
-//#endif
-//    return NRF_SUCCESS;
-//
-//}
+mem_org_error_code_e Mem_Org_Send_Track_Via_BLE(uint32_t key)
+{
+    uint32_t address = Mem_Org_Get_Key_Encoded_Address(key);
+    uint32_t byte_counter = 0;
+    uint32_t bytes_to_send_cnt = 0;
+    mem_org_gps_sample_t sample = {0};
+    uint8_t timeoutId = 0;
+
+#ifdef EXT_FLASH_AVAILABLE
+    ExtFlashTurnOn(EXT_FLASH_READ_OP);
+#endif
+
+#ifndef EXT_FLASH_AVAILABLE
+    uint16_t flash_page_size = INTERNAL_FLASH_PAGE_SIZE;
+    /// Get the number of data bytes in the track
+    memcpy(&bytes_to_send_cnt, address + 2, sizeof(uint16_t));
+#else
+    uint16_t flash_page_size = EXT_FLASH_PAGE_SIZE;
+    ExtFlashReadPage(address + MEM_ORG_HEADER_OFFSET_NUM_OF_SAMPLES, &bytes_to_send_cnt, sizeof(uint16_t));
+#endif
+    // Calculate size in bytes of all samples in the track
+    bytes_to_send_cnt *= sizeof(mem_org_gps_sample_t);
+
+    RTCTimeout(NRF_RTC1, RTC1_S_TO_TICKS(5), &timeoutId);
+
+    /// Send the number of bytes in the track
+    BleUartDataIndicate(m_conn_handle_peripheral, E_BLE_UART_GET_HISTORY_TRACK, &bytes_to_send_cnt, sizeof(bytes_to_send_cnt), false);
+    BleUartWaitForIndicateEnd();
+    do
+    {
+        /// Check if we are not out of the data memory
+        if(address + sizeof(mem_org_gps_sample_t) >= MEM_ORG_DATA_AREA_END_ADDRESS)
+            return E_NO_MEMORY;
+
+        /// If we are trying to read the sample from in between flash pages
+        if(address + sizeof(mem_org_gps_sample_t) >= address - (address % flash_page_size) + flash_page_size)
+        {
+            // Set the address to the new page address start
+            address = address - (address % flash_page_size) + flash_page_size;
+        }
+
+        /// If it's the flash page beginning, set the address just after the flash page header
+        if(address % flash_page_size == 0)
+        {
+            address += sizeof(mem_org_flash_page_header_t);
+        }
+
+#ifndef EXT_FLASH_AVAILABLE
+        /// Fill in the sample
+        memcpy(&sample, address, sizeof(sample));
+#else
+        ExtFlashReadPage(address, &sample, sizeof(sample));
+#endif
+        /// Send the sample
+        BleUartDataIndicate(m_conn_handle_peripheral, E_BLE_UART_GET_HISTORY_TRACK, &sample, sizeof(sample), false);
+        /// Wait till the packet is sent
+        BleUartWaitForIndicateEnd();
+
+        /// Increase the send bytes counter
+        byte_counter += sizeof(sample);
+        address += sizeof(sample);
+
+    }while((byte_counter < bytes_to_send_cnt) && !rtcTimeoutArray[timeoutId].timeoutTriggeredFlag);
+
+    if(rtcTimeoutArray[timeoutId].timeoutTriggeredFlag)
+    {
+        RTCClearTimeout(NRF_RTC1, timeoutId);
+
+    #ifdef EXT_FLASH_AVAILABLE
+        ExtFlashTurnOff();
+    #endif
+        return E_TIMEOUT;
+    }
+
+
+#ifdef EXT_FLASH_AVAILABLE
+    ExtFlashTurnOff();
+#endif
+    return E_OP_SUCCESS;
+
+}
 

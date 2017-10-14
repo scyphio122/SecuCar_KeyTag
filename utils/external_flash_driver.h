@@ -142,7 +142,7 @@ uint32_t ExtFlashProgramPageWithPreerase(ext_flash_buffer_number_e buf_number, u
 
 uint32_t ExtFlashProgramPageWithoutPreerase(ext_flash_buffer_number_e buf_number, uint32_t address);
 
-uint32_t ExtFlashProgramPageThroughBufferWithoutPreerase(uint32_t address, uint8_t *data, uint16_t data_size);
+uint32_t ExtFlashProgramPageThroughBufferWithoutPreerase(uint32_t address, void *data, uint16_t data_size);
 
 uint32_t ExtFlashUpdateDataOnPage(ext_flash_buffer_number_e buf_number, uint32_t address, uint8_t *data, uint16_t data_size);
 
@@ -154,9 +154,9 @@ uint32_t ExtFlashEraseBlock(uint16_t block_number);
 
 uint32_t ExtFlashErasePage(uint32_t address);
 
-uint32_t ExtFlashReadPage(uint32_t address, uint8_t* data_buf, uint16_t data_size);
+uint32_t ExtFlashReadPage(uint32_t address, void* data_buf, uint16_t data_size);
 
-uint32_t ExtFlashRead_ontinuous(uint32_t address, uint8_t* data_buf, uint16_t data_size);
+uint32_t ExtFlashReadContinuous(uint32_t address, uint8_t* data_buf, uint16_t data_size);
 
 uint32_t ExtFlashReadBuffer(uint8_t buf_read_command, uint8_t buffer_address, uint8_t* data_buf, uint16_t data_size);
 #endif /* HARDWARE_EXT_FLASH_H_ */

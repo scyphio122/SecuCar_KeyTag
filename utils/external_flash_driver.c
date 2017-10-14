@@ -374,7 +374,7 @@ uint32_t ExtFlashProgramPageThroughBufferWPreerase(ext_flash_buffer_number_e buf
  * \param data_size - size of data to be stored
  */
 //__attribute__((optimize("O2")))
-uint32_t ExtFlashProgramPageThroughBufferWithoutPreerase(uint32_t address, uint8_t *data, uint16_t data_size)
+uint32_t ExtFlashProgramPageThroughBufferWithoutPreerase(uint32_t address, void *data, uint16_t data_size)
 {
     if(ext_flash_on == 0)
         return NRF_ERROR_INVALID_STATE;
@@ -632,7 +632,7 @@ uint32_t ExtFlashErasePage(uint32_t address)
  *          NRF_ERROR_DATA_SIZE - the user tries to read too much data from the page
  */
 //__attribute__((optimize("O2")))
-uint32_t ExtFlashReadPage(uint32_t address, uint8_t* data_buf, uint16_t data_size)
+uint32_t ExtFlashReadPage(uint32_t address, void* data_buf, uint16_t data_size)
 {
     if(((address%EXT_FLASH_PAGE_SIZE) + data_size) > EXT_FLASH_PAGE_SIZE)
         return NRF_ERROR_DATA_SIZE;

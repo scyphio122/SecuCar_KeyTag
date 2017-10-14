@@ -23,7 +23,9 @@
 
 typedef enum
 {
-    E_TEST
+    E_TEST,
+    E_BLE_UART_GET_AVAILABLE_TRACKS,
+    E_BLE_UART_GET_HISTORY_TRACK
 }ble_uart_communication_commands_e;
 
 typedef enum
@@ -113,7 +115,8 @@ typedef struct
 extern ble_uart_t                   m_ble_uart;
 
 uint32_t BleUartServiceInit(ble_uart_t * p_uart, const ble_uart_init_t * p_uart_init);
-uint32_t BleUartDataIndicate( uint16_t conn_handle, uint8_t command_code, uint8_t* data, uint16_t data_size, uint8_t data_buf_dynamically_allocated);
+uint32_t BleUartDataIndicate( uint16_t conn_handle, uint8_t command_code, void* data, uint16_t data_size, uint8_t data_buf_dynamically_allocated);
+void BleUartWaitForIndicateEnd();
 uint32_t BleUartDataSendNotify(uint16_t conn_handle, uint8_t command_code, uint8_t* data, uint16_t actual_data_size, uint8_t data_buf_dynamically_allocated);
 void BleUartHandler(ble_uart_t * p_uart, ble_uart_evt_t * p_evt, ble_uart_data_t p_data, uint8_t data_size);
 uint32_t BleUartIsIndicateEnabled(ble_uart_t * p_uart, bool * p_indication_enabled);

@@ -399,10 +399,10 @@ static uint32_t _BleUartIndicateSendNextPacket(ble_uart_t* p_uart)
  *  \param data_size - size of data which are to be sent
  *  \param data_buf_dynamically_allocated - 1 if the buffer is created with malloc function, 0 if it lies on stack
  */
-uint32_t BleUartDataIndicate( uint16_t conn_handle, uint8_t command_code, uint8_t* data, uint16_t data_size, uint8_t data_buf_dynamically_allocated)
+uint32_t BleUartDataIndicate( uint16_t conn_handle, uint8_t command_code, void* data, uint16_t data_size, uint8_t data_buf_dynamically_allocated)
 {
-//    if(conn_handle != BLE_CONN_HANDLE_INVALID)
-//    {
+    if(conn_handle != BLE_CONN_HANDLE_INVALID)
+    {
         /// Set the flag to indicate that message is going to be sent
         ble_tx_in_progress = 1;
         /// Set the size of data which are to be sent
@@ -420,10 +420,20 @@ uint32_t BleUartDataIndicate( uint16_t conn_handle, uint8_t command_code, uint8_
             _BleUartIndicateSendSinglePacket(&m_ble_uart, data, 19); /// Send the first packet (19 bytes, because the first one is command code)
         else
             _BleUartIndicateSendSinglePacket(&m_ble_uart, data, data_size);  /// If there is only 1 message to send
-//    }
-    return NRF_SUCCESS;
+
+        return NRF_SUCCESS;
+    }
+
+    return NRF_ERROR_INVALID_STATE;
 }
 
+void BleUartWaitForIndicateEnd()
+{
+    while (ble_tx_in_progress)
+    {
+        sd_app_evt_wait();
+    }
+}
 
 /**
  *  \brief This function sends single packet (up to 20 bytes) of data with BLE with NOTIFY characteristic
@@ -538,6 +548,14 @@ uint32_t BleUartDataSendNotify(uint16_t conn_handle, uint8_t command_code, uint8
             _BleUartNotifySendSinglePacket(&m_ble_uart, data, actual_data_size);  /// If there is only 1 message to send
     }
     return NRF_SUCCESS;
+}
+
+void BleUartWaitForNotifyEnd()
+{
+    while (ble_notification_in_progress)
+    {
+        sd_app_evt_wait();
+    }
 }
 
 /**
