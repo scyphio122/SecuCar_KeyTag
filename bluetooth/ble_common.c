@@ -13,7 +13,6 @@
 #include "ble_hci.h"
 #include "ble_conn_params.h"
 #include "ble_conn_state.h"
-#include "ble_central.h"
 #include "advertising.h"
 #include "nrf_soc.h"
 #include "nrf_sdh.h"
@@ -21,13 +20,11 @@
 #include "nrf_sdh_soc.h"
 #include "nrf_ble_gatt.h"
 #include "ble_uart_service.h"
-#include "internal_flash.h"
 
 
 NRF_BLE_GATT_DEF(m_gatt);                                       /**< GATT module instance. */
 
  uint16_t           m_conn_handle_peripheral = BLE_CONN_HANDLE_INVALID;    /**< Connection handle for peripheral */
- uint16_t           m_conn_handle_central = BLE_CONN_HANDLE_INVALID;    /**< Connection handle for central */
 
 /**@brief Function to handle asserts in the SoftDevice.
  *
@@ -92,12 +89,9 @@ static void on_ble_evt(uint16_t conn_handle, ble_evt_t const * p_ble_evt)
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
-            m_connected_peers[conn_handle].is_connected = true;
-            m_connected_peers[conn_handle].address = p_ble_evt->evt.gap_evt.params.connected.peer_addr;
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
-            memset(&m_connected_peers[conn_handle], 0x00, sizeof(m_connected_peers[0]));
             break;
 
         case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
@@ -172,25 +166,12 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
     uint16_t conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
     uint16_t role        = ble_conn_state_role(conn_handle);
 
-    if (    (p_ble_evt->header.evt_id == BLE_GAP_EVT_CONNECTED)
-        &&  (IsAlreadyConnected(&p_ble_evt->evt.gap_evt.params.connected.peer_addr)))
-    {
-        (void)sd_ble_gap_disconnect(conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
-
-        // Do not process the event further.
-        return;
-    }
-
     on_ble_evt(conn_handle, p_ble_evt);
 
     if (role == BLE_GAP_ROLE_PERIPH)
     {
         // Manages peripheral LEDs.
         on_ble_peripheral_evt(p_ble_evt);
-    }
-    else if ((role == BLE_GAP_ROLE_CENTRAL) || (p_ble_evt->header.evt_id == BLE_GAP_EVT_ADV_REPORT))
-    {
-        on_ble_central_evt(p_ble_evt);
     }
 }
 

@@ -13,10 +13,10 @@
 #include "app_timer.h"
 #include <stdint-gcc.h>
 
-#define DEVICE_NAME                     "SecuCar"
+#define DEVICE_NAME                     "KeyTag"
 
 /** @brief The maximum number of peripheral and central links combined. */
-#define NRF_BLE_LINK_COUNT              (NRF_SDH_BLE_PERIPHERAL_LINK_COUNT + NRF_SDH_BLE_CENTRAL_LINK_COUNT)
+#define NRF_BLE_LINK_COUNT              (NRF_SDH_BLE_PERIPHERAL_LINK_COUNT)
 
 
 #define FIRST_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(5000)                       /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (5 seconds). */

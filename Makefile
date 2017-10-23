@@ -14,7 +14,7 @@ SIZE = arm-none-eabi-size
 OPTIMIZATION = -O0
 BUILD_FOLDER = Build_Output
 OUTPUT_BINARY_FOLDER = $(BUILD_FOLDER)
-OUTPUT_BINARY_NAME = Car_Tracker
+OUTPUT_BINARY_NAME = KeyTag
 LINKER_SCRIPT = armgcc_s132_nrf52832_xxaa.ld
 LINKER_COMMON_SCRIPT = nrf5x_common.ld
 
@@ -49,18 +49,12 @@ C_SOURCE_FILES = src/main.c
 C_SOURCE_FILES += src/system_nrf52.c
 C_SOURCE_FILES += src/fifo.c
 C_SOURCE_FILES += utils/crypto.c
-C_SOURCE_FILES += utils/external_flash_driver.c
-C_SOURCE_FILES += utils/file_system.c
 C_SOURCE_FILES += hardware/Systick.c
-C_SOURCE_FILES += hardware/UART.c
-C_SOURCE_FILES += hardware/SPI.c 
-C_SOURCE_FILES += hardware/RTC.c
 C_SOURCE_FILES += hardware/internal_flash.c
+C_SOURCE_FILES += hardware/nfc.c
 C_SOURCE_FILES += bluetooth/ble_common.c
 C_SOURCE_FILES += bluetooth/advertising.c
-C_SOURCE_FILES += bluetooth/ble_central.c
 C_SOURCE_FILES += bluetooth/services/ble_uart_service.c
-C_SOURCE_FILES += bluetooth/services/ble_uart_service_central.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/ble/common/ble_advdata.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/util/app_error.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/util/app_error_weak.c
@@ -68,15 +62,14 @@ C_SOURCE_FILES += $(nRF52_SDK)/components/softdevice/common/nrf_sdh.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/softdevice/common/nrf_sdh_ble.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/softdevice/common/nrf_sdh_soc.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/experimental_section_vars/nrf_section_iter.c
-C_SOURCE_FILES += $(nRF52_SDK)/components/ble/ble_db_discovery/ble_db_discovery.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/ble/nrf_ble_gatt/nrf_ble_gatt.c 
 C_SOURCE_FILES += $(nRF52_SDK)/components/ble/common/ble_conn_state.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/ble/common/ble_srv_common.c
 #C_SOURCE_FILES += $(nRF52_SDK)/components/ble/common/ble_conn_params.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/ble/ble_advertising/ble_advertising.c
-C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/fstorage/nrf_fstorage.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/util/sdk_mapped_flags.c
 C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/fifo/app_fifo.c
+C_SOURCE_FILES += $(nRF52_SDK)/components/libraries/fstorage/nrf_fstorage.c
 
 #----------------------- COMPILING FLAGS ------------------------------
 
@@ -84,7 +77,7 @@ CFLAGS +=	$(OPTIMIZATION)
 CFLAGS += 	-mcpu=cortex-m4
 CFLAGS +=   -mabi=aapcs
 CFLAGS +=   -mthumb
-CFLAGS += 	-mfloat-abi=hard
+CFLAGS += 	-mfloat-abi=soft
 CFLAGS += 	-mfpu=fpv4-sp-d16
 CFLAGS +=   -DARM_MATH_CM4
 CFLAGS +=	--std=gnu99
@@ -119,21 +112,21 @@ CFLAGS +=   -DECB=1										 #AES cipher method
 
 ASMFLAGS += -x assembler-with-cpp
 ASMFLAGS += -DARM_MATH_CM4
-ASMFLAGS += -mfloat-abi=hard
+ASMFLAGS += -mfloat-abi=soft
 ASMFLAGS += -mfpu=fpv4-sp-d16
 ASMFLAGS += -D__STARTUP_CLEAR_BSS	# Needed to zero BSS section in RAM by the startup code
 #------------------------ LINKER FLAGS --------------------------------
 
 LDFLAGS += -mcpu=cortex-m4
 LDFLAGS += -mabi=aapcs
-LDFLAGS += -mfloat-abi=hard
+LDFLAGS += -mfloat-abi=soft
 LDFLAGS += -mfpu=fpv4-sp-d16
 LDFLAGS += -Xlinker -Map=$(OUTPUT_BINARY_FOLDER)/$(OUTPUT_BINARY_NAME).map
 LDFLAGS += -Wl,--gc-sections
 LDFLAGS += -T"$(nRF52_SDK)/$(LINKER_SCRIPT)"
 LDFLAGS += -L"$(nRF52_SDK)"
-LDFLAGS += -L/home/konrad/Projects/Bare_Metal/Car_Tracker/libs/hard
-LDFLAGS += -L/home/konrad/Projects/Bare_Metal/Car_Tracker/libs
+LDFLAGS += -L/home/konrad/Projects/Bare_Metal/SecuCar/KeyTag/libs/hard
+LDFLAGS += -L/home/konrad/Projects/Bare_Metal/SecuCar/KeyTag/libs
 LDFLAGS += --specs=nano.specs -lc -lnosys
 LDFLAGS += -lgcc
 

@@ -15,21 +15,20 @@
 #include "nrf52_bitfields.h"
 #include "nrf_soc.h"
 #include "core_cm4.h"
-#include "Systick.h"
 #include "nrf_sdm.h"
 #include "settings.h"
 #include "nrf_nvic.h"
-#include "UART.h"
-#include "SPI.h"
 #include "ble_common.h"
 #include "advertising.h"
 #include <string.h>
 #include "RTC.h"
 #include "ble_uart_service.h"
-#include "internal_flash.h"
 #include "nrf_sdh_soc.h"
-#include "ble_central.h"
 #include "crypto.h"
+#include "internal_flash.h"
+#include "Systick.h"
+#include "pinout.h"
+#include "nfc.h"
 
 /*
  *
@@ -87,77 +86,54 @@ __attribute__((optimize("O0")))
 int main(void)
 {
 #if SOFTDEVICE_ENABLED
-	BleStackInit();
-
-    RTCInit(NRF_RTC1);
-    SystickInit();
+    BleStackInit();
 
 	GapParamsInit();
 	GattInit();
 //	ConnParamsInit();
 	ServicesInit();
 	AdvertisingInit();
-	BleCentralInit();
+	SystickInit();
 
 //	AdvertisingStart();
-//    BleCentralScanStart();
+
+	nrf_gpio_cfg_output(BLUE_LED);
+	nrf_gpio_cfg_output(GREEN_LED);
+    nrf_gpio_cfg_output(RED_LED);
+
+    nrf_gpio_pin_set(BLUE_LED);
+    nrf_gpio_pin_set(GREEN_LED);
+    nrf_gpio_pin_set(RED_LED);
+
+    nrf_gpio_pin_clear(BLUE_LED);
+//    nrf_gpio_pin_set(BLUE_LED);
+
+    NfcInit();
+
 #endif
 
     // Check if the Main Key exists
-    if (!CryptoCheckMainKey())
+   /* if (!CryptoCheckMainKey())
     {
-        CryptoGenerateAndStoreMainKey();
+
+    }*/
+
+    while(1)
+    {
+        sd_app_evt_wait();
+/*        SystickDelayMs(1000);
+
+        nrf_gpio_pin_clear(RED_LED);
+        nrf_gpio_pin_set(RED_LED);
+        SystickDelayMs(1000);
+        nrf_gpio_pin_clear(BLUE_LED);
+        nrf_gpio_pin_set(BLUE_LED);
+        SystickDelayMs(1000);
+        nrf_gpio_pin_clear(GREEN_LED);
+        nrf_gpio_pin_set(GREEN_LED);*/
+
     }
 
-    uint8_t data[64] = "Litwo, Ojczyzno moja, Ty jestes jak zdrowie, Ten tylko sie dowie";
-    uint8_t dataEncrypted[64];
-    uint8_t dataDecrypted[64];
-    uint8_t iv[16];
-    uint8_t ivSize;
-    CryptoGenerateKey((uint8_t*)iv, &ivSize);
-    memset(dataEncrypted, 0, 64);
-    IntFlashErasePage((uint32_t*)0x30000);
-
-
-    uint32_t encryptStart = NRF_RTC1->COUNTER;
-    CryptoCFBEncryptData(data, iv, (uint8_t*)CRYPTO_MAIN_KEY_ADDRESS, 16, dataEncrypted, 64);
-    //CryptoEncryptData(data, 16, (uint8_t*)CRYPTO_MAIN_KEY_ADDRESS, 16, dataEncrypted);
-    uint32_t encryptEnd = NRF_RTC1->COUNTER;
-
-    IntFlashUpdatePage(dataEncrypted, 64, (uint32_t*)0x30000);
-
-    memset(dataEncrypted, 0, 64);
-    memset(dataDecrypted, 0, 64);
-
-    memcpy(dataEncrypted, (uint8_t*)0x30000, 64);
-    uint32_t decryptStart = NRF_RTC1->COUNTER;
-    CryptoCFBDecryptData(dataEncrypted, iv, (uint8_t*)CRYPTO_MAIN_KEY_ADDRESS, 16, dataDecrypted, 64);
-//    CryptoECBDecryptData(dataEncrypted, 16, (uint8_t*)CRYPTO_MAIN_KEY_ADDRESS, 16, dataDecrypted);
-    uint32_t decryptEnd = NRF_RTC1->COUNTER;
-
-    uint32_t encryptTime = (encryptEnd - encryptStart);
-    uint32_t decryptTime = decryptEnd - decryptStart;
-
-//	uint32_t retcode = 0;
-//	retcode = IntFlashStoreWord(0xDEADBEEF, (uint32_t*)0x30000);
-//	retcode = IntFlashStoreWord(0x12345678, (uint32_t*)0x30004);
-//	retcode = IntFlashErasePage((uint32_t*)0x30000);
-//	UartConfig(UART_BAUDRATE_BAUDRATE_Baud9600, UART_CONFIG_PARITY_Included, UART_CONFIG_HWFC_Disabled);
-//	UartEnable();
-//	UartSendDataSync("Hello World, it's nRF52!", sizeof("Hello World, it's nRF52!"));
-//
-//	SpiConfig(NRF_SPI0, SPI_FREQUENCY_FREQUENCY_M8, SPI_CONFIG_ORDER_MsbFirst, SPI_CONFIG_CPHA_Leading, SPI_CONFIG_CPOL_ActiveHigh);
-//	SpiEnable(NRF_SPI0);
-//	SpiWrite(NRF_SPI0, "Hello World, it's nRF52!", sizeof("Hello World, it's nRF52!"));
-//	UartReadDataEndCharSync(buf, '\n');M
-
-	nrf_gpio_cfg_output(17);
-	while(1)
-	{
-//	    BleUartServicePendingTasks();
-//		RTCDelay(NRF_RTC1, RTC1_MS_TO_TICKS(1000));
-//		nrf_gpio_pin_toggle(17);
-	}
-
+	
   return 0;
 }
