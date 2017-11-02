@@ -46,6 +46,8 @@
  */
 
 nrf_nvic_state_t nrf_nvic_state = {0};
+uint8_t mainKey[CRYPTO_KEY_SIZE];
+uint8_t keyTagDisarmingCommand[CRYPTO_KEY_SIZE];
 
 void POWER_CLOCK_IRQHandler()
 {
@@ -97,6 +99,9 @@ int main(void)
 
 //	AdvertisingStart();
 
+	nrf_gpio_cfg_output(17);
+	nrf_gpio_pin_set(17);
+
 	nrf_gpio_cfg_output(BLUE_LED);
 	nrf_gpio_cfg_output(GREEN_LED);
     nrf_gpio_cfg_output(RED_LED);
@@ -108,15 +113,52 @@ int main(void)
     nrf_gpio_pin_clear(BLUE_LED);
 //    nrf_gpio_pin_set(BLUE_LED);
 
-    NfcInit();
+    // Check if the Main Key exists
+    if (!CryptoCheckMainKey())
+    {
+        NfcInit();
+        NfcPrepareTxData("KeyTag", sizeof("KeyTag"));
+        nfcInitState = E_DEV_NAME_PREPARED;
+        NfcStartSensingField();
+
+        while (nfcInitState != E_RECEIVED_MAIN_KEY)
+        {
+            sd_app_evt_wait();
+        }
+
+        uint8_t receivedDataSize = 0;
+        receivedDataSize = NfcGetAvailableRxDataCount();
+
+        memset(mainKey, 0, sizeof(keyTagDisarmingCommand));
+        NfcGetRxData(mainKey, 0, receivedDataSize);
+
+        uint8_t cmdSize = 0;
+        CryptoGenerateKey(keyTagDisarmingCommand, &cmdSize);
+
+        NfcPrepareTxData(keyTagDisarmingCommand, sizeof(keyTagDisarmingCommand));
+        NfcTriggerTx();
+
+        while (nfcInitState != E_RECEIVED_OK_RESPONSE)
+        {
+            sd_app_evt_wait();
+        }
+
+        IntFlashUpdatePage(mainKey, receivedDataSize, CRYPTO_MAIN_KEY_ADDRESS);
+        IntFlashUpdatePage(keyTagDisarmingCommand, sizeof(keyTagDisarmingCommand), KEY_TAG_ALARM_DISARMING_COMMAND_ADDRESS);
+
+        NfcDisable();
+        nfcInitState = E_INITIALIZED;
+    }
+    else
+    {
+        memcpy(mainKey, CRYPTO_MAIN_KEY_ADDRESS, sizeof(mainKey));
+        memcpy(keyTagDisarmingCommand, KEY_TAG_ALARM_DISARMING_COMMAND_ADDRESS, sizeof(keyTagDisarmingCommand));
+        nfcInitState = E_INITIALIZED;
+    }
+
 
 #endif
 
-    // Check if the Main Key exists
-   /* if (!CryptoCheckMainKey())
-    {
-
-    }*/
 
     while(1)
     {

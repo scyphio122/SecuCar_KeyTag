@@ -30,7 +30,7 @@ static uint8_t*             ble_data_ptr;                                   /**<
 static uint8_t*             ble_current_data_ptr;
 static volatile uint8_t     ble_uart_data_dynamically_allocated;
 
-static app_fifo_t           ble_uart_pending_requests_fifo;
+static fifo_t               ble_uart_pending_requests_fifo;
 static uint8_t              ble_uart_pending_requests_fifo_buffer[16];
 
 uint32_t BleUartAddPendingTask(ble_uart_communication_commands_e command)
@@ -924,7 +924,7 @@ uint32_t BleUartServiceInit(ble_uart_t * p_uart, const ble_uart_init_t * p_uart_
         return err_code;
     }
 
-    FifoInit(&ble_uart_pending_requests_fifo, ble_uart_pending_requests_fifo_buffer, sizeof(ble_uart_pending_requests_fifo_buffer));
+    FifoInit(&ble_uart_pending_requests_fifo, ble_uart_pending_requests_fifo_buffer, sizeof(ble_uart_pending_requests_fifo_buffer), sizeof(uint8_t));
     return NRF_SUCCESS;
 }
 
