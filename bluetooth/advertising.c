@@ -19,7 +19,8 @@
 #include "nrf_log_default_backends.h"
 #include "ble_common.h"
 #include "ble_hci.h"
-
+#include "nrf_gpio.h"
+#include "pinout.h"
 BLE_ADVERTISING_DEF(m_advertising);                                         /**< Advertising module instance. */
 
 //static ble_gap_adv_params_t m_adv_params;                                 /**< Parameters to be passed to the stack when starting advertising. */
@@ -55,18 +56,16 @@ void on_ble_peripheral_evt(ble_evt_t const * p_ble_evt)
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
-            NRF_LOG_INFO("PERIPHERAL: Connected, handle %d.", p_ble_evt->evt.gap_evt.conn_handle);
+            nrf_gpio_pin_clear(BLUE_LED);
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
-            NRF_LOG_INFO("PERIPHERAL: Disconnected, handle %d, reason 0x%x.",
-                         p_ble_evt->evt.gap_evt.conn_handle,
-                         p_ble_evt->evt.gap_evt.params.disconnected.reason);
+            nrf_gpio_pin_set(BLUE_LED);
+
         break;
 
         case BLE_GATTC_EVT_TIMEOUT:
             // Disconnect on GATT Client timeout event.
-            NRF_LOG_DEBUG("PERIPHERAL: GATT Client Timeout.");
             err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gattc_evt.conn_handle,
                                              BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
             APP_ERROR_CHECK(err_code);
@@ -74,7 +73,6 @@ void on_ble_peripheral_evt(ble_evt_t const * p_ble_evt)
 
         case BLE_GATTS_EVT_TIMEOUT:
             // Disconnect on GATT Server timeout event.
-            NRF_LOG_DEBUG("PERIPHERAL: GATT Server Timeout.");
             err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gatts_evt.conn_handle,
                                              BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
             APP_ERROR_CHECK(err_code);

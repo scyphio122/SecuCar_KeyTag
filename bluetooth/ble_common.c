@@ -156,6 +156,12 @@ static void on_ble_evt(uint16_t conn_handle, ble_evt_t const * p_ble_evt)
     }
 }
 
+int cnt = 0;
+ble_uart_evt_type_t evtHistory[16] = {  0xFF, 0xFF, 0xFF, 0xFF,
+                                        0xFF, 0xFF, 0xFF, 0xFF,
+                                        0xFF, 0xFF, 0xFF, 0xFF,
+                                        0xFF, 0xFF, 0xFF, 0xFF};
+
 /**@brief Function for handling BLE events.
  *
  * @param[in]   p_ble_evt   Bluetooth stack event.
@@ -166,13 +172,16 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
     uint16_t conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
     uint16_t role        = ble_conn_state_role(conn_handle);
 
-    on_ble_evt(conn_handle, p_ble_evt);
+    evtHistory[cnt++] = p_ble_evt->header.evt_id;
 
     if (role == BLE_GAP_ROLE_PERIPH)
     {
         // Manages peripheral LEDs.
         on_ble_peripheral_evt(p_ble_evt);
     }
+
+    on_ble_evt(conn_handle, p_ble_evt);
+
 }
 
 /**@brief Function for the GAP initialization.

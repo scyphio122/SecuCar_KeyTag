@@ -10,7 +10,7 @@
 
 #include "ble_advertising.h"
 
-#define ADV_INTERVAL                    MSEC_TO_UNITS(1000, UNIT_0_625_MS) /**< The advertising interval for advertisement (100 ms). This value can vary between 100ms to 10.24s). */
+#define ADV_INTERVAL                    MSEC_TO_UNITS(100, UNIT_0_625_MS) /**< The advertising interval for advertisement (100 ms). This value can vary between 100ms to 10.24s). */
 #define ADV_TIMEOUT_IN_SECONDS          BLE_GAP_ADV_TIMEOUT_GENERAL_UNLIMITED
 
 

@@ -46,8 +46,7 @@
  */
 
 nrf_nvic_state_t nrf_nvic_state = {0};
-uint8_t mainKey[CRYPTO_KEY_SIZE];
-uint8_t keyTagDisarmingCommand[CRYPTO_KEY_SIZE];
+
 
 void POWER_CLOCK_IRQHandler()
 {
@@ -89,15 +88,15 @@ int main(void)
 {
 #if SOFTDEVICE_ENABLED
     BleStackInit();
+    RTCInit(NRF_RTC1);
 
 	GapParamsInit();
 	GattInit();
 //	ConnParamsInit();
 	ServicesInit();
 	AdvertisingInit();
-	SystickInit();
+//	SystickInit();
 
-//	AdvertisingStart();
 
 	nrf_gpio_cfg_output(17);
 	nrf_gpio_pin_set(17);
@@ -108,72 +107,67 @@ int main(void)
 
     nrf_gpio_pin_set(BLUE_LED);
     nrf_gpio_pin_set(GREEN_LED);
-    nrf_gpio_pin_set(RED_LED);
-
-    nrf_gpio_pin_clear(BLUE_LED);
-//    nrf_gpio_pin_set(BLUE_LED);
+    nrf_gpio_pin_clear(RED_LED);
 
     // Check if the Main Key exists
     if (!CryptoCheckMainKey())
     {
-        NfcInit();
-        NfcPrepareTxData("KeyTag", sizeof("KeyTag"));
-        nfcInitState = E_DEV_NAME_PREPARED;
-        NfcStartSensingField();
+        CryptoGenerateAndStoreDeactivationCommandKey();
+        uint32_t keyPart = 0xDEADBEEF;
+        memcpy(mainEncryptionKey, &keyPart, sizeof(keyPart));
+        keyPart = 0xABBAABBA;
+        memcpy(mainEncryptionKey + 4, &keyPart, sizeof(keyPart));
+        keyPart = 0xBAABBAAB;
+        memcpy(mainEncryptionKey + 8, &keyPart, sizeof(keyPart));
+        keyPart = 0xDEADFEED;
+        memcpy(mainEncryptionKey + 12, &keyPart, sizeof(keyPart));
 
-        while (nfcInitState != E_RECEIVED_MAIN_KEY)
-        {
-            sd_app_evt_wait();
-        }
+        IntFlashUpdatePage(mainEncryptionKey, CRYPTO_KEY_SIZE, CRYPTO_MAIN_KEY_ADDRESS);
 
-        uint8_t receivedDataSize = 0;
-        receivedDataSize = NfcGetAvailableRxDataCount();
+//        NfcInit();
+//        NfcPrepareTxData("KeyTag", sizeof("KeyTag"));
+//        nfcInitState = E_DEV_NAME_PREPARED;
+//        NfcStartSensingField();
 
-        memset(mainKey, 0, sizeof(keyTagDisarmingCommand));
-        NfcGetRxData(mainKey, 0, receivedDataSize);
+//        while (nfcInitState != E_RECEIVED_MAIN_KEY)
+//        {
+//            sd_app_evt_wait();
+//        }
 
-        uint8_t cmdSize = 0;
-        CryptoGenerateKey(keyTagDisarmingCommand, &cmdSize);
+//        uint8_t receivedDataSize = 0;
+//        receivedDataSize = NfcGetAvailableRxDataCount();
 
-        NfcPrepareTxData(keyTagDisarmingCommand, sizeof(keyTagDisarmingCommand));
-        NfcTriggerTx();
+//        memset(mainEncryptionKey, 0, sizeof(mainEncryptionKey));
+//        NfcGetRxData(mainEncryptionKey, 0, receivedDataSize);
+//
+//        NfcPrepareTxData(alarmDeactivationCmd, sizeof(alarmDeactivationCmd));
+//        NfcTriggerTx();
+//
+//        while (nfcInitState != E_RECEIVED_OK_RESPONSE)
+//        {
+//            sd_app_evt_wait();
+//        }
 
-        while (nfcInitState != E_RECEIVED_OK_RESPONSE)
-        {
-            sd_app_evt_wait();
-        }
+//        IntFlashUpdatePage(mainEncryptionKey, receivedDataSize, CRYPTO_MAIN_KEY_ADDRESS);
 
-        IntFlashUpdatePage(mainKey, receivedDataSize, CRYPTO_MAIN_KEY_ADDRESS);
-        IntFlashUpdatePage(keyTagDisarmingCommand, sizeof(keyTagDisarmingCommand), KEY_TAG_ALARM_DISARMING_COMMAND_ADDRESS);
-
-        NfcDisable();
+//        NfcDisable();
         nfcInitState = E_INITIALIZED;
     }
     else
     {
-        memcpy(mainKey, CRYPTO_MAIN_KEY_ADDRESS, sizeof(mainKey));
-        memcpy(keyTagDisarmingCommand, KEY_TAG_ALARM_DISARMING_COMMAND_ADDRESS, sizeof(keyTagDisarmingCommand));
+        memcpy(mainEncryptionKey, CRYPTO_MAIN_KEY_ADDRESS, sizeof(mainEncryptionKey));
+        memcpy(alarmDeactivationCmd, KEY_TAG_ALARM_DISARMING_COMMAND_ADDRESS, sizeof(alarmDeactivationCmd));
         nfcInitState = E_INITIALIZED;
     }
-
-
 #endif
 
+    AdvertisingStart();
 
     while(1)
     {
-        sd_app_evt_wait();
-/*        SystickDelayMs(1000);
-
-        nrf_gpio_pin_clear(RED_LED);
-        nrf_gpio_pin_set(RED_LED);
-        SystickDelayMs(1000);
-        nrf_gpio_pin_clear(BLUE_LED);
-        nrf_gpio_pin_set(BLUE_LED);
-        SystickDelayMs(1000);
-        nrf_gpio_pin_clear(GREEN_LED);
-        nrf_gpio_pin_set(GREEN_LED);*/
-
+//        sd_app_evt_wait();
+        __WFE();
+        BleExecutePendingRequests();
     }
 
 	

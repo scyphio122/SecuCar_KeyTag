@@ -13,6 +13,11 @@
 
 #define CRYPTO_KEY_SIZE         16
 
+extern uint8_t currentInitialisingVector[CRYPTO_KEY_SIZE];
+extern uint8_t mainEncryptionKey[CRYPTO_KEY_SIZE];
+extern uint8_t tempEncryptionKey[CRYPTO_KEY_SIZE];
+extern uint8_t alarmDeactivationCmd[CRYPTO_KEY_SIZE];
+
 /**
  * @brief This function checks if the main key is stored in the internal memory at @ref CRYPTO_MAIN_KEY_ADDRESS
  * @return true if key already exists, false otherwise
@@ -36,6 +41,20 @@ uint32_t CryptoGenerateKey(uint8_t* generatedKey, uint8_t* generatedKeySize);
  *          NRF_SUCCESS - key stored successfully
  */
 uint32_t CryptoGenerateAndStoreMainKey();
+
+uint32_t CryptoGenerateAndStoreDeactivationCommandKey();
+
+/**
+ * @brief This function returns the main encryption key
+ * @return
+ */
+uint8_t* CryptoGetMainEncryptionKey();
+
+/**
+ * @brief This function returns the pointer to the currently used initializing vector
+ * @return pointer to the key
+ */
+uint8_t* CryptoGetCurrentInitialisingVector();
 
 /**
  * @brief This function encrypts up to 16 bytes of data using ECB alghoritm

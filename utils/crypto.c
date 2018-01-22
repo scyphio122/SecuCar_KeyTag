@@ -7,7 +7,6 @@
  */
 
 #include "crypto.h"
-#include "Systick.h"
 #include <stdint-gcc.h>
 #include <stdbool.h>
 #include <limits.h>
@@ -16,8 +15,12 @@
 #include "internal_flash.h"
 #include <string.h>
 #include <malloc.h>
+#include "RTC.h"
 
-static uint8_t _lastKey[CRYPTO_KEY_SIZE];
+uint8_t currentInitialisingVector[CRYPTO_KEY_SIZE];
+uint8_t mainEncryptionKey[CRYPTO_KEY_SIZE];
+uint8_t tempEncryptionKey[CRYPTO_KEY_SIZE];
+uint8_t alarmDeactivationCmd[CRYPTO_KEY_SIZE];
 
 extern void AES_128_keyschedule(const uint8_t *, uint8_t *);
 extern void AES_128_keyschedule_dec(const uint8_t *, uint8_t *);
@@ -44,7 +47,7 @@ uint32_t CryptoGenerateKey(uint8_t* generatedKey, uint8_t* generatedKeySize)
     while (availableBytes < CRYPTO_KEY_SIZE)
     {
         sd_rand_application_bytes_available_get(&availableBytes);
-        SystickDelayMs(1);
+        Rtc1DelayMs(1);
     }
 
     *generatedKeySize = CRYPTO_KEY_SIZE;
@@ -88,6 +91,40 @@ uint32_t CryptoGenerateAndStoreMainKey()
         return retval;
 
     return NRF_SUCCESS;
+}
+
+uint32_t CryptoGenerateAndStoreDeactivationCommandKey()
+{
+    uint32_t retval = NRF_SUCCESS;
+    uint8_t generatedKeySize = 0;
+
+    retval = CryptoGenerateKey(alarmDeactivationCmd, &generatedKeySize);
+
+    if (retval == NRF_ERROR_SOC_RAND_NOT_ENOUGH_VALUES)
+        return retval;
+
+    retval = IntFlashUpdatePage(alarmDeactivationCmd, CRYPTO_KEY_SIZE, (uint32_t*)KEY_TAG_ALARM_DISARMING_COMMAND_ADDRESS);
+
+    if (retval != FLASH_OP_SUCCESS)
+        return retval;
+
+    return NRF_SUCCESS;
+}
+
+uint8_t* CryptoGetMainEncryptionKey()
+{
+    return mainEncryptionKey;
+}
+
+uint8_t* CryptoGetCurrentInitialisingVector()
+{
+    return currentInitialisingVector;
+}
+
+uint32_t CryptoUpdateIv(uint8_t* newIv)
+{
+    memcpy(currentInitialisingVector, newIv, CRYPTO_KEY_SIZE);
+    return 0;
 }
 
 uint32_t CryptoECBEncryptData(uint8_t* dataToEncrypt,
@@ -139,6 +176,8 @@ uint32_t CryptoCFBEncryptData(uint8_t* dataToEncrypt,
                               uint8_t* encryptedData,
                               uint32_t dataSize)
 {
+    uint8_t* initCipher = encryptedData;
+
     // Assert the data size. It should be a multiple of keySize
     if (dataSize % keySize != 0)
     {
@@ -170,6 +209,8 @@ uint32_t CryptoCFBEncryptData(uint8_t* dataToEncrypt,
     }
 
     free(tmpInitVector);
+
+    CryptoUpdateIv(initCipher);
     return NRF_SUCCESS;
 }
 
@@ -180,6 +221,7 @@ uint32_t CryptoCFBDecryptData(uint8_t* encryptedData,
                               uint8_t* decryptedData,
                               uint32_t dataSize)
 {
+    uint8_t* initCipher = encryptedData;
     // Assert the data size. It should be a multiple of keySize
     if (dataSize % keySize != 0)
     {
@@ -210,6 +252,7 @@ uint32_t CryptoCFBDecryptData(uint8_t* encryptedData,
         decryptedData += keySize;
     }
 
+    CryptoUpdateIv(initCipher);
     free(tmpInitVector);
     return NRF_SUCCESS;
 }

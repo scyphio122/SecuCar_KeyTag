@@ -15,7 +15,9 @@
 #include "RTC.h"
 #include "fifo.h"
 #include "app_fifo.h"
-
+#include "crypto.h"
+#include "nrf_gpio.h"
+#include "pinout.h"
 
 ble_uart_t                  m_ble_uart;
 
@@ -70,6 +72,7 @@ uint32_t BleUartServicePendingTasks()
 static void _OnConnect(ble_uart_t * p_uart, ble_evt_t * p_ble_evt)
 {
     p_uart->conn_handle = p_ble_evt->evt.gatts_evt.conn_handle;
+    m_conn_handle_peripheral = p_ble_evt->evt.gatts_evt.conn_handle;
 }
 
 
@@ -82,6 +85,7 @@ static void _OnDisconnect(ble_uart_t * p_uart, ble_evt_t * p_ble_evt)
 {
     UNUSED_PARAMETER(p_ble_evt);
     p_uart->conn_handle = BLE_CONN_HANDLE_INVALID;
+    m_conn_handle_peripheral = BLE_CONN_HANDLE_INVALID;
 }
 
 
@@ -147,6 +151,8 @@ static void _OnDevEventsCccdWrite(ble_uart_t * p_uart, ble_gatts_evt_write_t * p
  */
 static void _OnRxWrite(ble_uart_t * p_uart, ble_gatts_evt_write_t * p_evt_write)
 {
+    nrf_gpio_pin_set(BLUE_LED);
+    nrf_gpio_pin_clear(GREEN_LED);
     if (p_evt_write->len)
     {
         // CCCD written, update indication state
@@ -170,20 +176,25 @@ static void _OnWrite(ble_uart_t * p_uart, ble_evt_t * p_ble_evt)
     ble_gatts_evt_write_t * p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
     static uint8_t tx_enabled = 0;
     static uint8_t evt_enabled = 0;
+
+    if (p_evt_write->handle == p_uart->rx_handles.value_handle) //Handle VALUE write to RX characteristic
+    {
+        _OnRxWrite(p_uart, p_evt_write);
+    }
+
     if (p_evt_write->handle == p_uart->tx_handles.cccd_handle) //Handle CCCD write to TX characteristic
     {
         _OnTxCccdWrite(p_uart, p_evt_write);
         tx_enabled = 1;
     }
+
     if (p_evt_write->handle == p_uart->dev_events_handles.cccd_handle) //Handle CCCD write to Device Events characteristic
     {
         _OnDevEventsCccdWrite(p_uart, p_evt_write);
         evt_enabled = 1;
     }
-    if (p_evt_write->handle == p_uart->rx_handles.value_handle) //Handle VALUE write to RX characteristic
-    {
-        _OnRxWrite(p_uart, p_evt_write);
-    }
+
+
 }
 
 
@@ -246,6 +257,7 @@ void BleUartOnBleEvt(ble_uart_t * p_uart, ble_evt_t const * p_ble_evt)
         case BLE_GATTS_EVT_HVC:         /**< Event for indication ACK from central**/
             _OnHvc(p_uart, ble_evt);
             break;
+
         case BLE_GATTS_EVT_HVN_TX_COMPLETE:
         {
             _OnNotifyCompleted(p_uart, ble_evt);
@@ -303,19 +315,51 @@ static uint32_t  _BleUartNotifyWaitTillPacketInProgress()
  */
 static uint32_t _BleUartRxHandler(uint8_t* p_data, uint8_t data_size)
 {
-    uint8_t request_code = p_data[0];
     uint32_t err_code = 0;
 
-    BleUartAddPendingTask(E_TEST);
+    uint8_t request_code = p_data[0] & 0x7F;
+    uint8_t packetSize = p_data[1];
+
+    uint8_t packet[16];
 
     switch(request_code)
     {
+        case E_BLE_UART_SEND_IV_ON_KEY_TAG_CONNECT:
+        {
+            CryptoECBDecryptData(p_data + 2, CRYPTO_KEY_SIZE, mainEncryptionKey, CRYPTO_KEY_SIZE, tempEncryptionKey);
+            BleUartAddPendingTask(E_BLE_UART_DEACTIVATE_ALARM);
+        }break;
 
         default:
             break;
     }
 
     return NRF_SUCCESS;
+}
+
+uint32_t BleExecutePendingRequests()
+{
+    uint8_t request = 0;
+    while (!FifoIsEmpty(&ble_uart_pending_requests_fifo))
+    {
+        FifoGet(&ble_uart_pending_requests_fifo, &request);
+
+        switch (request)
+        {
+            case E_BLE_UART_DEACTIVATE_ALARM:
+            {
+                uint8_t encryptedDeactivationCmd[CRYPTO_KEY_SIZE];
+                memcpy(encryptedDeactivationCmd, alarmDeactivationCmd, CRYPTO_KEY_SIZE);
+                CryptoCFBEncryptData(alarmDeactivationCmd, tempEncryptionKey, mainEncryptionKey, CRYPTO_KEY_SIZE, encryptedDeactivationCmd, CRYPTO_KEY_SIZE);
+                BleUartDataIndicate(m_conn_handle_peripheral, E_BLE_UART_DEACTIVATE_ALARM, encryptedDeactivationCmd, CRYPTO_KEY_SIZE, false);
+            }break;
+
+            default:
+                break;
+        }
+    }
+
+    return 0;
 }
 /**
  *  \brief This function sends single packet (up to 20 bytes) of data with BLE
@@ -337,17 +381,18 @@ static uint32_t _BleUartIndicateSendSinglePacket(ble_uart_t* p_uart, uint8_t* da
             memset(&hvx_params, 0, sizeof(hvx_params));
             memset(&value_params,0,sizeof(value_params));
 
+            ble_uart_tx_buffer[1] = actual_data_size;
             /// Copy the message to the buffer
-            memcpy(ble_uart_tx_buffer+1, data, actual_data_size);
+            memcpy(ble_uart_tx_buffer+2, data, actual_data_size);
 
             //Fill structure with data size. This will avoid sending empty bytes when sending <20 bytes
-            value_params.len = actual_data_size + 1;
+            value_params.len = actual_data_size + 2;
             value_params.offset = 0;
             value_params.p_value = NULL;
 
             err_code = sd_ble_gatts_value_set(p_uart->conn_handle, p_uart->tx_handles.value_handle, &value_params);
 
-            hvx_len = actual_data_size + 1;
+            hvx_len = actual_data_size + 2;
             hvx_params.handle = p_uart->tx_handles.value_handle;
             hvx_params.type   = BLE_GATT_HVX_INDICATION;
             hvx_params.offset = 0;
@@ -416,8 +461,8 @@ uint32_t BleUartDataIndicate( uint16_t conn_handle, uint8_t command_code, void* 
         /// Set the buffer allocation flasg
         ble_uart_data_dynamically_allocated = data_buf_dynamically_allocated;
         /// If there is more than one message to send
-        if(data_size > 19)
-            _BleUartIndicateSendSinglePacket(&m_ble_uart, data, 19); /// Send the first packet (19 bytes, because the first one is command code)
+        if((data_size + 2) > 18)
+            _BleUartIndicateSendSinglePacket(&m_ble_uart, data, 18); /// Send the first packet (19 bytes, because the first one is command code)
         else
             _BleUartIndicateSendSinglePacket(&m_ble_uart, data, data_size);  /// If there is only 1 message to send
 

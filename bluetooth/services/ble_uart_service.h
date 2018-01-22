@@ -24,6 +24,19 @@
 typedef enum
 {
     E_TEST,
+    E_TEST_ACC_SAMPLES = 12,
+    E_BLE_UART_GET_TIMESTAMP,
+    E_BLE_UART_SET_TIMESTAMP,
+    E_BLE_UART_GET_DEVICE_ID,
+    E_BLE_UART_SET_DEVICE_ID,
+    E_BLE_UART_GET_OWNER_PHONE_NUMBER,
+    E_BLE_UART_SET_OWNER_PHONE_NUMBER,
+    E_BLE_UART_GET_DEVICE_PHONE_NUMBER,
+    E_BLE_UART_SET_DEVICE_PHONE_NUMBER,
+
+    E_BLE_UART_SEND_IV_ON_KEY_TAG_CONNECT,
+    E_BLE_UART_DEACTIVATE_ALARM,
+
     E_BLE_UART_GET_AVAILABLE_TRACKS,
     E_BLE_UART_GET_HISTORY_TRACK
 }ble_uart_communication_commands_e;
@@ -121,6 +134,8 @@ uint32_t    BleUartDataSendNotify(uint16_t conn_handle, uint8_t command_code, ui
 void        BleUartWaitForNotifyEnd();
 
 void BleUartHandler(ble_uart_t * p_uart, ble_uart_evt_t * p_evt, ble_uart_data_t p_data, uint8_t data_size);
+uint32_t BleExecutePendingRequests();
+
 uint32_t BleUartIsIndicateEnabled(ble_uart_t * p_uart, bool * p_indication_enabled);
 uint32_t BleUartIsNotifyEnabled(ble_uart_t * p_uart, bool * p_indication_enabled);
 uint32_t BleUartAddPendingTask(ble_uart_communication_commands_e command);
